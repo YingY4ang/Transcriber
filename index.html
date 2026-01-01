@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinical Recorder</title>
+  <style>
+    body { font-family: system-ui; max-width: 500px; margin: 50px auto; text-align: center; }
+    button { padding: 20px 40px; font-size: 18px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; }
+    #record { background: #4CAF50; color: white; }
+    #record.recording { background: #f44336; }
+    #status { margin: 20px 0; color: #666; }
+    #result { text-align: left; background: #f5f5f5; padding: 15px; border-radius: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Clinical Recorder</h1>
+  <button id="record">Start Recording</button>
+  <p id="status">Ready</p>
+  <div id="result"></div>
+
+  <script>
+    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com'; // Your backend URL
+    
+    let recorder, chunks = [];
+    const btn = document.getElementById('record');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+
+    btn.onclick = async () => {
+      if (!recorder || recorder.state === 'inactive') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        chunks = [];
+
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+
+          try {
+            // 1. Get presigned URL from your backend
+            status.textContent = 'Getting upload URL...';
+            const urlRes = await fetch(`${API_URL}/get-upload-url`);
+            const { upload_url, key } = await urlRes.json();
+
+            // 2. Upload directly to S3
+            status.textContent = 'Uploading to S3...';
+            await fetch(upload_url, {
+              method: 'PUT',
+              body: blob,
+              headers: { 'Content-Type': 'audio/webm' }
+            });
+
+            // 3. Wait for processing (poll for results)
+            status.textContent = 'Processing transcription...';
+            const resultData = await pollForResult(key);
+            
+            result.style.display = 'block';
+            result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
+            status.textContent = 'Done';
+          } catch (err) {
+            status.textContent = 'Error: ' + err.message;
+          }
+        };
+
+        recorder.start();
+        btn.textContent = 'Stop Recording';
+        btn.classList.add('recording');
+        status.textContent = 'Recording...';
+      } else {
+        recorder.stop();
+        btn.textContent = 'Start Recording';
+        btn.classList.remove('recording');
+      }
+    };
+
+    async function pollForResult(key, maxAttempts = 30) {
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2 sec
+        const res = await fetch(`${API_URL}/result/${encodeURIComponent(key)}`);
+        if (res.ok) {
+          return await res.json();
+        }
+      }
+      throw new Error('Processing timeout');
+    }
+  </script>
+</body>
+</html>
