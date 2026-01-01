@@ -1,0 +1,36 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build and push Docker image
+      run: |
+        echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest ./docker
+        docker push ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
+    
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
+          docker stop clinical-recorder || true
+          docker rm clinical-recorder || true
+          docker run -d --name clinical-recorder \
+            -e AWS_REGION=${{ secrets.AWS_REGION }} \
+            -e QUEUE_URL=${{ secrets.QUEUE_URL }} \
+            -e TABLE_NAME=${{ secrets.TABLE_NAME }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
