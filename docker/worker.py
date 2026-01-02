@@ -10,7 +10,7 @@ bedrock = boto3.client('bedrock-runtime', region_name=REGION)
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 
 print("Loading Whisper...")
-model = whisper.load_model("base")
+model = whisper.load_model("medium")
 print("Ready!")
 
 while True:
