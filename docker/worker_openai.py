@@ -13,9 +13,15 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 print("Ready!")
+print("Waiting for requests...")
 
 while True:
     resp = sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1, WaitTimeSeconds=20)
+    print(f"SQS Response: {resp.get('ResponseMetadata', {}).get('RequestId', 'No RequestId')}")
+    if 'Messages' in resp:
+        print(f"Found {len(resp['Messages'])} message(s)")
+    else:
+        print("No messages in queue")
     for msg in resp.get('Messages', []):
         try:
             body = json.loads(msg['Body'])
