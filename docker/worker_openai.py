@@ -39,9 +39,9 @@ while True:
                 ).text
             print(f"Transcript: {transcript[:100]}...")
             
-            prompt = """Return ONLY valid JSON: {"diagnosis":"string","medications":[],"follow_up":"string","notes":"string"}
+            prompt = """Return ONLY valid JSON: {"tasks":["task1","task2"],"diagnosis":"string","medications":[],"follow_up":"string","notes":"string"}
 
-Transcript: """ + transcript
+Extract actionable tasks from this clinical consultation transcript: """ + transcript
             
             try:
                 resp_ai = bedrock.invoke_model(

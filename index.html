@@ -15,6 +15,9 @@
 </head>
 <body>
   <h1>Clinical Recorder</h1>
+  <select id="micSelect">
+    <option value="">Select Microphone...</option>
+  </select>
   <button id="record">Start Recording</button>
   <p id="status">Ready</p>
   <div id="result"></div>
@@ -26,10 +29,37 @@
     const btn = document.getElementById('record');
     const status = document.getElementById('status');
     const result = document.getElementById('result');
+    const micSelect = document.getElementById('micSelect');
+
+    // Populate microphone list
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+      return navigator.mediaDevices.enumerateDevices();
+    }).then(devices => {
+      devices.filter(device => device.kind === 'audioinput').forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Microphone ${micSelect.options.length}`;
+        micSelect.appendChild(option);
+      });
+    });
 
     btn.onclick = async () => {
       if (!recorder || recorder.state === 'inactive') {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const deviceId = micSelect.value;
+        if (!deviceId) {
+          status.textContent = 'Please select a microphone first';
+          return;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            deviceId: { exact: deviceId },
+            sampleRate: 44100,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true
+          } 
+        });
         recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         chunks = [];
 
