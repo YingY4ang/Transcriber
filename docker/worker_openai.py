@@ -13,7 +13,7 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 print("Ready!")
-print("Waiting for requests...")
+print("Waiting for requests....")
 
 while True:
     resp = sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1, WaitTimeSeconds=20)
