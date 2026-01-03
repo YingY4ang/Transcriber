@@ -34,4 +34,5 @@ jobs:
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            -e PYTHONUNBUFFERED=1 \
             ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:openai

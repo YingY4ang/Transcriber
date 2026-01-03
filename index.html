@@ -48,7 +48,17 @@
       document.querySelector('h1').textContent = `Clinical Recorder - ${patientName}`;
     }
 
-    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com'; // Your backend URL
+    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com';
+    // Get WebSocket URL from backend
+    let WEBSOCKET_URL = 'wss://cmxbu5k037.execute-api.ap-southeast-2.amazonaws.com/prod'; // fallback
+    
+    // Fetch config asynchronously
+    fetch(`${API_URL}/config`)
+      .then(res => res.json())
+      .then(config => {
+        WEBSOCKET_URL = config.websocketUrl;
+      })
+      .catch(err => console.log('Config fetch failed, using fallback WebSocket URL')); // Your backend URL
     
     let recorder, chunks = [];
     const btn = document.getElementById('record');
@@ -194,7 +204,9 @@
         });
         
         status.textContent = 'Processing transcription...';
-        const resultData = await pollForResult(key);
+        
+        // Use WebSocket for real-time updates
+        const resultData = await waitForWebSocketResult(key);
         
         result.style.display = 'block';
         result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
@@ -204,13 +216,49 @@
       }
     };
 
-    async function pollForResult(key, maxAttempts = 30) {
+    async function waitForWebSocketResult(key) {
+      return new Promise((resolve, reject) => {
+        const ws = new WebSocket(WEBSOCKET_URL);
+        
+        ws.onopen = () => {
+          // Subscribe to updates for this audio key
+          ws.send(JSON.stringify({
+            action: 'subscribe',
+            audioKey: key
+          }));
+        };
+        
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'completed' && data.audioKey === key) {
+            ws.close();
+            resolve(data.result);
+          }
+        };
+        
+        ws.onerror = () => {
+          ws.close();
+          // Fallback to polling if WebSocket fails
+          pollForResult(key).then(resolve).catch(reject);
+        };
+        
+        // Timeout after 10 minutes
+        setTimeout(() => {
+          ws.close();
+          reject(new Error('Processing timeout'));
+        }, 600000);
+      });
+    }
+
+    async function pollForResult(key, maxAttempts = 60, interval = 5000) {
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, 2000)); // Wait 2 sec
+        await new Promise(r => setTimeout(r, interval));
         const res = await fetch(`${API_URL}/result/${encodeURIComponent(key)}`);
         if (res.ok) {
           return await res.json();
         }
+        // Update status to show progress
+        status.textContent = `Processing transcription... (${i + 1}/${maxAttempts})`;
       }
       throw new Error('Processing timeout');
     }
