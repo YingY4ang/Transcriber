@@ -1,4 +1,4 @@
-import json, os, boto3
+import json, os, boto3, time
 from openai import OpenAI
 
 REGION = os.environ.get('AWS_REGION', 'ap-southeast-2')
@@ -28,6 +28,17 @@ while True:
             bucket = body['Records'][0]['s3']['bucket']['name']
             key = body['Records'][0]['s3']['object']['key']
             print(f"Processing: {key}")
+            
+            # Check if file exists before processing
+            try:
+                s3.head_object(Bucket=bucket, Key=key)
+            except Exception as e:
+                print(f"File already processed or not found: {key} - {e}")
+                sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=msg['ReceiptHandle'])
+                continue
+            
+            # Extract patient ID from S3 key
+            patient_id = key.split('/')[-1].split('_')[0] if '_' in key else 'unknown'
             
             local = f"/tmp/{os.path.basename(key)}"
             s3.download_file(bucket, key, local)
@@ -60,10 +71,60 @@ Extract actionable tasks from this clinical consultation transcript: """ + trans
                 print(f"Bedrock error: {e}")
                 extracted = {"notes": "extraction failed"}
             
-            dynamodb.Table(TABLE).put_item(Item={'audio_key': key, 'transcript': transcript, **extracted})
+            dynamodb.Table(TABLE).put_item(Item={
+                'audio_key': key, 
+                'patient_id': patient_id,
+                'transcript': transcript, 
+                'timestamp': int(time.time()),
+                **extracted
+            })
+            
+            # Send WebSocket notification
+            try:
+                print("Attempting WebSocket notification...")
+                apigateway = boto3.client('apigatewaymanagementapi',
+                    endpoint_url='https://cmxbu5k037.execute-api.ap-southeast-2.amazonaws.com/prod',
+                    region_name=REGION
+                )
+                
+                # Get connections subscribed to this audio key
+                connections_table = dynamodb.Table('websocket-connections')
+                print(f"Scanning for connections with audioKey: {key}")
+                response = connections_table.scan(
+                    FilterExpression='audioKey = :key',
+                    ExpressionAttributeValues={':key': key}
+                )
+                print(f"Found {len(response['Items'])} connections")
+                
+                # Send completion notification to all subscribers
+                for item in response['Items']:
+                    try:
+                        apigateway.post_to_connection(
+                            ConnectionId=item['connectionId'],
+                            Data=json.dumps({
+                                'type': 'completed',
+                                'audioKey': key,
+                                'result': {
+                                    'transcript': transcript,
+                                    **extracted
+                                }
+                            })
+                        )
+                        print(f"Sent notification to connection: {item['connectionId']}")
+                    except Exception as conn_error:
+                        print(f"Failed to send to connection {item['connectionId']}: {conn_error}")
+                        pass
+            except Exception as e:
+                print(f"WebSocket notification error: {e}")
+                import traceback
+                traceback.print_exc()
+            
             s3.delete_object(Bucket=bucket, Key=key)
             os.remove(local)
             sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=msg['ReceiptHandle'])
             print(f"Done: {key}")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error processing message: {e}")
+            print(f"Message body: {msg.get('Body', 'No body')}")
+            import traceback
+            traceback.print_exc()
