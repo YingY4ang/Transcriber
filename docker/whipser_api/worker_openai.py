@@ -104,6 +104,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     
     # Clinical notes as DocumentReference
     if transcript:
+        import base64
+        encoded_transcript = base64.b64encode(transcript.encode('utf-8')).decode('utf-8')
         document = {
             "resource": {
                 "resourceType": "DocumentReference",
@@ -114,7 +116,7 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                 "content": [{
                     "attachment": {
                         "contentType": "text/plain",
-                        "data": transcript
+                        "data": encoded_transcript
                     }
                 }]
             }
