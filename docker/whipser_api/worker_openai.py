@@ -98,8 +98,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "id": f"vital-{vital_type}",
                     "status": "final",
                     "category": [{"coding": [{"code": "vital-signs"}]}],
-                    "subject": {"reference": f"Patient/patient-{patient_id}"},
-                    "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
+                    "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
+                    "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
                     "code": {"text": vital_type.upper()},
                     "valueString": str(value)
                 },
@@ -119,8 +119,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "id": f"task-{i}",
                     "status": "active",
                     "intent": "order",
-                    "subject": {"reference": f"Patient/patient-{patient_id}"},
-                    "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
+                    "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
+                    "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
                     "code": {"text": task}
                 },
                 "request": {
@@ -139,8 +139,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                 "resourceType": "DocumentReference",
                 "id": "clinical-transcript",
                 "status": "current",
-                "subject": {"reference": f"Patient/patient-{patient_id}"},
-                "context": {"encounter": [{"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"}]},
+                "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
+                "context": {"encounter": [{"reference": f"Encounter/encounter-{clean_encounter_id}"}]},
                 "content": [{
                     "attachment": {
                         "contentType": "text/plain",
