@@ -25,7 +25,11 @@ def get_upload_url():
     try:
         url = s3.generate_presigned_url(
             'put_object',
-            Params={'Bucket': BUCKET, 'Key': key},
+            Params={
+                'Bucket': BUCKET, 
+                'Key': key,
+                'ContentType': 'application/octet-stream'
+            },
             ExpiresIn=3600,
             HttpMethod='PUT'
         )

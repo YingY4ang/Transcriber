@@ -60,7 +60,7 @@
       document.querySelector('h1').textContent = `Clinical Recorder - ${patientName}`;
     }
 
-    const API_URL = 'http://YOUR_EC2_IP:5000'; // Replace with your EC2 public IP
+    const API_URL = 'http://52.63.25.129:5000'; // Your EC2 public IP
     // Get WebSocket URL from backend
     let WEBSOCKET_URL = 'wss://cmxbu5k037.execute-api.ap-southeast-2.amazonaws.com/prod'; // fallback
     
@@ -210,7 +210,10 @@
         // Use presigned URL (works for large files)
         const uploadPromise = fetch(upload_url, {
           method: 'PUT',
-          body: file
+          body: file,
+          headers: {
+            'Content-Type': 'application/octet-stream'
+          }
         });
         
         // Simulate progress for user feedback
