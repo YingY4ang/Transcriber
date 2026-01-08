@@ -6,7 +6,7 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     bundle = {
         "resourceType": "Bundle",
         "id": encounter_id.replace('/', '-'),
-        "type": "collection",
+        "type": "transaction",
         "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S+12:00'),
         "entry": []
     }
@@ -21,6 +21,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                 "system": "https://standards.digital.health.nz/ns/nhi-id",
                 "value": patient_id
             }]
+        },
+        "request": {
+            "method": "PUT",
+            "url": f"Patient/patient-{patient_id}"
         }
     }
     bundle["entry"].append(patient)
@@ -34,6 +38,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
             "class": {"code": "AMB", "display": "ambulatory"},
             "subject": {"reference": f"Patient/patient-{patient_id}"},
             "period": {"start": time.strftime('%Y-%m-%dT%H:%M:%S+12:00')}
+        },
+        "request": {
+            "method": "PUT",
+            "url": f"Encounter/encounter-{encounter_id.replace('/', '-')}"
         }
     }
     bundle["entry"].append(encounter)
