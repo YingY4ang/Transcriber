@@ -13,7 +13,7 @@ s3 = boto3.client('s3', region_name='ap-southeast-2')
 dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
 sqs = boto3.client('sqs', region_name='ap-southeast-2')
 
-BUCKET = 'clinical-audio-uploads'
+BUCKET = 'clinical-audio-bucket'
 TABLE = 'clinical-results'
 QUEUE_URL = 'https://sqs.ap-southeast-2.amazonaws.com/958175315966/clinical-processing-queue'
 
