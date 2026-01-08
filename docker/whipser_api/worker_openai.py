@@ -56,6 +56,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                 "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
                 "code": {"text": extracted_data['diagnosis']},
                 "clinicalStatus": {"coding": [{"code": "active"}]}
+            },
+            "request": {
+                "method": "POST",
+                "url": "Condition"
             }
         }
         bundle["entry"].append(condition)
@@ -72,6 +76,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "subject": {"reference": f"Patient/patient-{patient_id}"},
                     "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
                     "medicationCodeableConcept": {"text": med}
+                },
+                "request": {
+                    "method": "POST",
+                    "url": "MedicationRequest"
                 }
             }
             bundle["entry"].append(medication)
@@ -90,6 +98,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
                     "code": {"text": vital_type.upper()},
                     "valueString": str(value)
+                },
+                "request": {
+                    "method": "POST",
+                    "url": "Observation"
                 }
             }
             bundle["entry"].append(observation)
@@ -106,6 +118,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "subject": {"reference": f"Patient/patient-{patient_id}"},
                     "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
                     "code": {"text": task}
+                },
+                "request": {
+                    "method": "POST",
+                    "url": "ServiceRequest"
                 }
             }
             bundle["entry"].append(service_request)
@@ -127,6 +143,10 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                         "data": encoded_transcript
                     }
                 }]
+            },
+            "request": {
+                "method": "POST",
+                "url": "DocumentReference"
             }
         }
         bundle["entry"].append(document)
