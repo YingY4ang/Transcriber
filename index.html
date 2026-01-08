@@ -386,7 +386,9 @@
           alert('✅ FHIR bundle sent successfully!');
           console.log('FHIR response:', result);
         } else {
-          throw new Error(`FHIR server error: ${response.status}`);
+          const errorText = await response.text();
+          console.error('FHIR server error details:', errorText);
+          throw new Error(`FHIR server error: ${response.status} - ${errorText}`);
         }
       } catch (error) {
         alert(`❌ Failed to send to FHIR server: ${error.message}`);
