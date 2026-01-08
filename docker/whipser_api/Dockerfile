@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 WORKDIR /app
-RUN pip install --no-cache-dir openai boto3
+RUN pip install --no-cache-dir openai boto3 requests
 
 COPY worker_openai.py .
 
