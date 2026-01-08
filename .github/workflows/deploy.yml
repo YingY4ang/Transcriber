@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy Clinical Recorder
 
 on:
   push:
@@ -11,11 +11,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Build and push Docker image
+    - name: Build and push Worker Docker image
       run: |
         echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest ./docker
-        docker push ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
+        docker build -f ./docker/whipser_api/Dockerfile -t ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:openai ./docker/whipser_api
+        docker push ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:openai
+    
+    - name: Build and push API Docker image
+      run: |
+        docker build -f ./docker/fhir_api/Dockerfile -t ${{ secrets.DOCKER_USERNAME }}/clinical-api:latest ./docker/fhir_api
+        docker push ${{ secrets.DOCKER_USERNAME }}/clinical-api:latest
     
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.3
@@ -24,7 +29,8 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          docker pull ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
+          # Deploy Worker
+          docker pull ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:openai
           docker stop clinical-recorder || true
           docker rm clinical-recorder || true
           docker run -d --name clinical-recorder \
@@ -33,4 +39,18 @@ jobs:
             -e TABLE_NAME=${{ secrets.TABLE_NAME }} \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:latest
+            -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            -e FHIR_SERVER_URL=http://host.docker.internal:8080/fhir \
+            -e PYTHONUNBUFFERED=1 \
+            ${{ secrets.DOCKER_USERNAME }}/clinical-recorder:openai
+          
+          # Deploy API Server
+          docker pull ${{ secrets.DOCKER_USERNAME }}/clinical-api:latest
+          docker stop clinical-api || true
+          docker rm clinical-api || true
+          docker run -d --name clinical-api \
+            -p 5000:5000 \
+            -e AWS_REGION=${{ secrets.AWS_REGION }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            ${{ secrets.DOCKER_USERNAME }}/clinical-api:latest

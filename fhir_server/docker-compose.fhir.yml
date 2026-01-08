@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  fhir-server:
+    image: hapiproject/hapi:latest
+    container_name: hapi-fhir-server
+    ports:
+      - "8080:8080"
+    environment:
+      - hapi.fhir.default_encoding=json
+      - hapi.fhir.fhir_version=r4
+    volumes:
+      - fhir-data:/data/hapi
+    restart: unless-stopped
+
+volumes:
+  fhir-data:

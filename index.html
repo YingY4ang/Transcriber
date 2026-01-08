@@ -10,7 +10,17 @@
     #record { background: #4CAF50; color: white; }
     #record.recording { background: #f44336; }
     #status { margin: 20px 0; color: #666; }
-    #result { text-align: left; background: #f5f5f5; padding: 15px; border-radius: 8px; display: none; }
+    #result { 
+      text-align: left; 
+      background: #f5f5f5; 
+      padding: 15px; 
+      border-radius: 8px; 
+      display: none; 
+      max-height: 400px; 
+      overflow-y: auto; 
+      word-wrap: break-word; 
+      white-space: pre-wrap; 
+    }
   </style>
 </head>
 <body>
@@ -32,6 +42,8 @@
     <div id="progressText" style="text-align: center; margin-top: 5px;">0%</div>
   </div>
   <p id="status">Ready</p>
+  <div id="timer" style="font-weight: bold; color: #666; margin: 10px 0; display: none;">Processing time: <span id="timerValue">0</span>s</div>
+  <button id="sendToFhir" style="display: none; background: #2196F3; color: white; padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer;">Send to FHIR Server</button>
   <div id="result"></div>
 
   <script>
@@ -48,7 +60,7 @@
       document.querySelector('h1').textContent = `Clinical Recorder - ${patientName}`;
     }
 
-    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com';
+    const API_URL = 'http://YOUR_EC2_IP:5000'; // Replace with your EC2 public IP
     // Get WebSocket URL from backend
     let WEBSOCKET_URL = 'wss://cmxbu5k037.execute-api.ap-southeast-2.amazonaws.com/prod'; // fallback
     
@@ -65,6 +77,13 @@
     const status = document.getElementById('status');
     const result = document.getElementById('result');
     const micSelect = document.getElementById('micSelect');
+    const timer = document.getElementById('timer');
+    const timerValue = document.getElementById('timerValue');
+    const sendToFhirBtn = document.getElementById('sendToFhir');
+    
+    let startTime = null;
+    let timerInterval = null;
+    let currentFhirBundle = null;
 
     // Populate microphone list
     navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
@@ -161,7 +180,14 @@
       }
 
       try {
-        const file = fileInput.files[0];
+        let file = fileInput.files[0];
+        
+        // Convert to WebM if not already WebM
+        if (!file.type.includes('webm')) {
+          status.textContent = 'Converting audio format...';
+          file = await convertToWebM(file);
+        }
+        
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
@@ -172,6 +198,14 @@
 
         status.textContent = 'Uploading file...';
         progressContainer.style.display = 'block';
+        
+        // Start timer
+        startTime = Date.now();
+        timer.style.display = 'block';
+        timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          timerValue.textContent = elapsed;
+        }, 1000);
         
         // Use presigned URL (works for large files)
         const uploadPromise = fetch(upload_url, {
@@ -211,10 +245,72 @@
         result.style.display = 'block';
         result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
         status.textContent = 'Done';
+        
+        // Show FHIR button if bundle exists
+        if (resultData.fhir_bundle) {
+          currentFhirBundle = resultData.fhir_bundle;
+          sendToFhirBtn.style.display = 'inline-block';
+        }
+        
+        // Stop timer
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          const totalTime = Math.floor((Date.now() - startTime) / 1000);
+          timerValue.textContent = totalTime;
+        }
       } catch (err) {
         status.textContent = 'Error: ' + err.message;
+        if (timerInterval) clearInterval(timerInterval);
       }
     };
+
+    // Convert audio file to WebM format
+    async function convertToWebM(audioFile) {
+      return new Promise((resolve, reject) => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const fileReader = new FileReader();
+        
+        fileReader.onload = async (e) => {
+          try {
+            const arrayBuffer = e.target.result;
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Create MediaStream from AudioBuffer
+            const mediaStreamDestination = audioContext.createMediaStreamDestination();
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(mediaStreamDestination);
+            
+            // Record to WebM
+            const mediaRecorder = new MediaRecorder(mediaStreamDestination.stream, { 
+              mimeType: 'audio/webm' 
+            });
+            const chunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+              const webmBlob = new Blob(chunks, { type: 'audio/webm' });
+              resolve(webmBlob);
+            };
+            
+            mediaRecorder.start();
+            source.start();
+            
+            // Stop recording when audio ends
+            setTimeout(() => {
+              mediaRecorder.stop();
+              source.stop();
+            }, audioBuffer.duration * 1000);
+            
+          } catch (error) {
+            reject(error);
+          }
+        };
+        
+        fileReader.onerror = reject;
+        fileReader.readAsArrayBuffer(audioFile);
+      });
+    }
 
     async function waitForWebSocketResult(key) {
       return new Promise((resolve, reject) => {
@@ -262,6 +358,41 @@
       }
       throw new Error('Processing timeout');
     }
+
+    // Send FHIR bundle to server
+    sendToFhirBtn.onclick = async () => {
+      if (!currentFhirBundle) {
+        alert('No FHIR bundle available');
+        return;
+      }
+      
+      try {
+        sendToFhirBtn.textContent = 'Sending...';
+        sendToFhirBtn.disabled = true;
+        
+        const response = await fetch('http://localhost:8080/fhir', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/fhir+json'
+          },
+          body: JSON.stringify(currentFhirBundle)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          alert('✅ FHIR bundle sent successfully!');
+          console.log('FHIR response:', result);
+        } else {
+          throw new Error(`FHIR server error: ${response.status}`);
+        }
+      } catch (error) {
+        alert(`❌ Failed to send to FHIR server: ${error.message}`);
+        console.error('FHIR error:', error);
+      } finally {
+        sendToFhirBtn.textContent = 'Send to FHIR Server';
+        sendToFhirBtn.disabled = false;
+      }
+    };
   </script>
 </body>
 </html>
