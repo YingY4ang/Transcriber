@@ -25,11 +25,7 @@ def get_upload_url():
     try:
         url = s3.generate_presigned_url(
             'put_object',
-            Params={
-                'Bucket': BUCKET, 
-                'Key': key,
-                'ContentType': 'audio/webm'
-            },
+            Params={'Bucket': BUCKET, 'Key': key},
             ExpiresIn=3600,
             HttpMethod='PUT'
         )
