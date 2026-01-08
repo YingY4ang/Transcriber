@@ -1,22 +1,5 @@
-import json, os, boto3, time, requests
+import json, os, boto3, time
 from openai import OpenAI
-
-def send_to_fhir_server(fhir_bundle):
-    """Send FHIR bundle to local server"""
-    try:
-        fhir_url = os.environ.get('FHIR_SERVER_URL', 'http://host.docker.internal:8080/fhir')
-        headers = {"Content-Type": "application/fhir+json"}
-        response = requests.post(fhir_url, json=fhir_bundle, headers=headers, timeout=10)
-        
-        if response.status_code in [200, 201]:
-            print(f"✅ FHIR bundle sent successfully to {fhir_url}")
-            return response.json()
-        else:
-            print(f"❌ FHIR server error: {response.status_code} - {response.text}")
-            return None
-    except Exception as e:
-        print(f"❌ Failed to send to FHIR server: {e}")
-        return None
 
 def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     """Generate FHIR R4 Bundle with NZ extensions"""
@@ -219,9 +202,6 @@ Clinical transcript: """ + transcript
                 # Generate FHIR resources
                 fhir_bundle = generate_fhir_bundle(patient_id, key, extracted, transcript)
                 
-                # Send to FHIR server
-                fhir_response = send_to_fhir_server(fhir_bundle) if fhir_bundle else None
-                
             except Exception as e:
                 print(f"Bedrock error: {e}")
                 extracted = {"notes": "extraction failed"}
@@ -263,6 +243,7 @@ Clinical transcript: """ + transcript
                                 'audioKey': key,
                                 'result': {
                                     'transcript': transcript,
+                                    'fhir_bundle': fhir_bundle,
                                     **extracted
                                 }
                             })
