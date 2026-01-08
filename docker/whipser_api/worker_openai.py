@@ -3,9 +3,13 @@ from openai import OpenAI
 
 def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     """Generate FHIR R4 Bundle with NZ extensions"""
+    # Clean IDs to be FHIR compliant (alphanumeric only)
+    clean_encounter_id = ''.join(c for c in encounter_id if c.isalnum())
+    clean_patient_id = ''.join(c for c in patient_id if c.isalnum())
+    
     bundle = {
         "resourceType": "Bundle",
-        "id": encounter_id.replace('/', '-'),
+        "id": clean_encounter_id,
         "type": "transaction",
         "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S+12:00'),
         "entry": []
@@ -15,7 +19,7 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     patient = {
         "resource": {
             "resourceType": "Patient",
-            "id": f"patient-{patient_id}",
+            "id": f"patient-{clean_patient_id}",
             "identifier": [{
                 "use": "official",
                 "system": "https://standards.digital.health.nz/ns/nhi-id",
@@ -24,7 +28,7 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
         },
         "request": {
             "method": "PUT",
-            "url": f"Patient/patient-{patient_id}"
+            "url": f"Patient/patient-{clean_patient_id}"
         }
     }
     bundle["entry"].append(patient)
@@ -33,15 +37,15 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     encounter = {
         "resource": {
             "resourceType": "Encounter",
-            "id": f"encounter-{encounter_id.replace('/', '-')}",
+            "id": f"encounter-{clean_encounter_id}",
             "status": "finished",
             "class": {"code": "AMB", "display": "ambulatory"},
-            "subject": {"reference": f"Patient/patient-{patient_id}"},
+            "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
             "period": {"start": time.strftime('%Y-%m-%dT%H:%M:%S+12:00')}
         },
         "request": {
             "method": "PUT",
-            "url": f"Encounter/encounter-{encounter_id.replace('/', '-')}"
+            "url": f"Encounter/encounter-{clean_encounter_id}"
         }
     }
     bundle["entry"].append(encounter)
@@ -52,8 +56,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
             "resource": {
                 "resourceType": "Condition",
                 "id": f"condition-{len(bundle['entry'])}",
-                "subject": {"reference": f"Patient/patient-{patient_id}"},
-                "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
+                "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
+                "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
                 "code": {"text": extracted_data['diagnosis']},
                 "clinicalStatus": {"coding": [{"code": "active"}]}
             },
@@ -73,8 +77,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "id": f"medication-{i}",
                     "status": "active",
                     "intent": "order",
-                    "subject": {"reference": f"Patient/patient-{patient_id}"},
-                    "encounter": {"reference": f"Encounter/encounter-{encounter_id.replace('/', '-')}"},
+                    "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
+                    "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
                     "medicationCodeableConcept": {"text": med}
                 },
                 "request": {
