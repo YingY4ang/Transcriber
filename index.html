@@ -15,21 +15,93 @@
 </head>
 <body>
   <h1>Clinical Recorder</h1>
+  <div id="audioTips" style="background: #f0f8ff; padding: 10px; margin: 10px; border-radius: 5px; font-size: 12px;">
+    📢 <strong>Audio Tips:</strong> Speak clearly, minimize background noise, position microphone 6-12 inches from mouth
+  </div>
+  <input id="patientId" placeholder="Patient NHI or ID" style="padding: 10px; margin: 10px; width: 200px;">
+  <input type="file" id="audioFile" accept="audio/*,.webm,.mp3,.wav,.m4a,.ogg" style="margin: 10px;">
+  <select id="micSelect">
+    <option value="">Select Microphone...</option>
+  </select>
   <button id="record">Start Recording</button>
+  <button id="uploadFile">Upload Audio File</button>
+  <div id="progressContainer" style="display: none; margin: 10px;">
+    <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+      <div id="progressBar" style="background: #4CAF50; height: 20px; width: 0%; transition: width 0.3s;"></div>
+    </div>
+    <div id="progressText" style="text-align: center; margin-top: 5px;">0%</div>
+  </div>
   <p id="status">Ready</p>
   <div id="result"></div>
 
   <script>
-    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com'; // Your backend URL
+    // Auto-populate from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    const patientName = urlParams.get('name');
+    
+    if (patientId) {
+      document.getElementById('patientId').value = patientId;
+      document.getElementById('patientId').readOnly = true;
+    }
+    if (patientName) {
+      document.querySelector('h1').textContent = `Clinical Recorder - ${patientName}`;
+    }
+
+    const API_URL = 'https://n465kxij69.execute-api.ap-southeast-2.amazonaws.com';
+    // Get WebSocket URL from backend
+    let WEBSOCKET_URL = 'wss://cmxbu5k037.execute-api.ap-southeast-2.amazonaws.com/prod'; // fallback
+    
+    // Fetch config asynchronously
+    fetch(`${API_URL}/config`)
+      .then(res => res.json())
+      .then(config => {
+        WEBSOCKET_URL = config.websocketUrl;
+      })
+      .catch(err => console.log('Config fetch failed, using fallback WebSocket URL')); // Your backend URL
     
     let recorder, chunks = [];
     const btn = document.getElementById('record');
     const status = document.getElementById('status');
     const result = document.getElementById('result');
+    const micSelect = document.getElementById('micSelect');
+
+    // Populate microphone list
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+      return navigator.mediaDevices.enumerateDevices();
+    }).then(devices => {
+      devices.filter(device => device.kind === 'audioinput').forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Microphone ${micSelect.options.length}`;
+        micSelect.appendChild(option);
+      });
+    });
 
     btn.onclick = async () => {
       if (!recorder || recorder.state === 'inactive') {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const patientId = document.getElementById('patientId').value;
+        const deviceId = micSelect.value;
+        
+        if (!patientId.trim()) {
+          status.textContent = 'Please enter Patient ID first';
+          return;
+        }
+        if (!deviceId) {
+          status.textContent = 'Please select a microphone first';
+          return;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            deviceId: { exact: deviceId },
+            sampleRate: 48000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
         recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         chunks = [];
 
@@ -41,7 +113,7 @@
           try {
             // 1. Get presigned URL from your backend
             status.textContent = 'Getting upload URL...';
-            const urlRes = await fetch(`${API_URL}/get-upload-url`);
+            const urlRes = await fetch(`${API_URL}/get-upload-url?patientId=${encodeURIComponent(patientId)}`);
             const { upload_url, key } = await urlRes.json();
 
             // 2. Upload directly to S3
@@ -75,13 +147,118 @@
       }
     };
 
-    async function pollForResult(key, maxAttempts = 30) {
+    document.getElementById('uploadFile').onclick = async () => {
+      const patientId = document.getElementById('patientId').value;
+      const fileInput = document.getElementById('audioFile');
+      
+      if (!patientId.trim()) {
+        status.textContent = 'Please enter Patient ID first';
+        return;
+      }
+      if (!fileInput.files[0]) {
+        status.textContent = 'Please select an audio file first';
+        return;
+      }
+
+      try {
+        const file = fileInput.files[0];
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        status.textContent = 'Getting upload URL...';
+        const urlRes = await fetch(`${API_URL}/get-upload-url?patientId=${encodeURIComponent(patientId)}`);
+        const { upload_url, key } = await urlRes.json();
+
+        status.textContent = 'Uploading file...';
+        progressContainer.style.display = 'block';
+        
+        // Use presigned URL (works for large files)
+        const uploadPromise = fetch(upload_url, {
+          method: 'PUT',
+          body: file
+        });
+        
+        // Simulate progress for user feedback
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress > 90) progress = 90;
+          progressBar.style.width = progress + '%';
+          progressText.textContent = Math.round(progress) + '%';
+        }, 200);
+        
+        await uploadPromise;
+        // Key is already available from the initial request
+        
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
+        setTimeout(() => progressContainer.style.display = 'none', 500);
+        
+        // Trigger processing since S3 events are broken
+        await fetch(`${API_URL}/upload-complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: key })
+        });
+        
+        status.textContent = 'Processing transcription...';
+        
+        // Use WebSocket for real-time updates
+        const resultData = await waitForWebSocketResult(key);
+        
+        result.style.display = 'block';
+        result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
+        status.textContent = 'Done';
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+      }
+    };
+
+    async function waitForWebSocketResult(key) {
+      return new Promise((resolve, reject) => {
+        const ws = new WebSocket(WEBSOCKET_URL);
+        
+        ws.onopen = () => {
+          // Subscribe to updates for this audio key
+          ws.send(JSON.stringify({
+            action: 'subscribe',
+            audioKey: key
+          }));
+        };
+        
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'completed' && data.audioKey === key) {
+            ws.close();
+            resolve(data.result);
+          }
+        };
+        
+        ws.onerror = () => {
+          ws.close();
+          // Fallback to polling if WebSocket fails
+          pollForResult(key).then(resolve).catch(reject);
+        };
+        
+        // Timeout after 10 minutes
+        setTimeout(() => {
+          ws.close();
+          reject(new Error('Processing timeout'));
+        }, 600000);
+      });
+    }
+
+    async function pollForResult(key, maxAttempts = 60, interval = 5000) {
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, 2000)); // Wait 2 sec
+        await new Promise(r => setTimeout(r, interval));
         const res = await fetch(`${API_URL}/result/${encodeURIComponent(key)}`);
         if (res.ok) {
           return await res.json();
         }
+        // Update status to show progress
+        status.textContent = `Processing transcription... (${i + 1}/${maxAttempts})`;
       }
       throw new Error('Processing timeout');
     }
