@@ -1,5 +1,52 @@
 import json, os, boto3, time
+import librosa
+import numpy as np
+import soundfile as sf
 from openai import OpenAI
+
+def remove_silence_vad(audio_file_path):
+    """Remove silence from audio using VAD"""
+    try:
+        print(f"Applying VAD to: {audio_file_path}")
+        
+        # Load audio file
+        y, sr = librosa.load(audio_file_path, sr=16000)  # Resample to 16kHz for consistency
+        
+        # Use librosa's voice activity detection
+        # Split audio where silence is detected (top_db controls sensitivity)
+        intervals = librosa.effects.split(y, top_db=20, frame_length=2048, hop_length=512)
+        
+        if len(intervals) == 0:
+            print("No voice activity detected, keeping original audio")
+            return audio_file_path
+        
+        # Extract voice segments
+        voice_segments = []
+        total_voice_duration = 0
+        
+        for start, end in intervals:
+            segment = y[start:end]
+            voice_segments.append(segment)
+            total_voice_duration += len(segment) / sr
+        
+        # Concatenate all voice segments
+        processed_audio = np.concatenate(voice_segments)
+        
+        # Save processed audio
+        output_path = audio_file_path.replace('.webm', '_vad.wav')
+        sf.write(output_path, processed_audio, sr)
+        
+        original_duration = len(y) / sr
+        print(f"VAD processing complete:")
+        print(f"  Original duration: {original_duration:.2f}s")
+        print(f"  Voice duration: {total_voice_duration:.2f}s") 
+        print(f"  Reduction: {((original_duration - total_voice_duration) / original_duration * 100):.1f}%")
+        
+        return output_path
+        
+    except Exception as e:
+        print(f"VAD processing failed: {e}")
+        return audio_file_path  # Return original if VAD fails
 
 def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     """Generate FHIR R4 Bundle with NZ extensions"""
@@ -199,7 +246,10 @@ while True:
             local = f"/tmp/{os.path.basename(key)}"
             s3.download_file(bucket, key, local)
             
-            with open(local, "rb") as audio_file:
+            # Apply VAD to remove silence
+            processed_audio = remove_silence_vad(local)
+            
+            with open(processed_audio, "rb") as audio_file:
                 transcript = openai_client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio_file
