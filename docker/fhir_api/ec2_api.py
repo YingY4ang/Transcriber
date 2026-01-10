@@ -74,6 +74,90 @@ def get_result(key):
         return jsonify(resp['Item'])
     return jsonify({'status': 'processing'}), 404
 
+@app.route('/ai-summary', methods=['POST'])
+def generate_ai_summary():
+    try:
+        data = request.json
+        patient_data = data.get('patientData', {})
+        
+        # Build comprehensive patient summary for AI
+        summary_text = build_patient_summary(patient_data)
+        
+        # Send to Bedrock for AI analysis
+        prompt = f"""Analyze this patient's medical history and provide a concise clinical summary highlighting:
+1. Key medical conditions and their status
+2. Current medications and potential interactions
+3. Recent healthcare encounters and trends
+4. Risk factors and clinical concerns
+5. Recommendations for ongoing care
+
+Patient Data:
+{summary_text}
+
+Provide a professional clinical summary in 2-3 paragraphs:"""
+
+        bedrock = boto3.client('bedrock-runtime', region_name='ap-southeast-2')
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': 1024,
+                'messages': [{'role': 'user', 'content': prompt}]
+            })
+        )
+        
+        ai_response = json.loads(response['body'].read())
+        summary = ai_response['content'][0]['text']
+        
+        return jsonify({'summary': summary})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def build_patient_summary(patient_data):
+    """Build comprehensive text summary from FHIR data"""
+    summary_parts = []
+    
+    # Patient demographics
+    patient = patient_data.get('patient', {})
+    if patient:
+        summary_parts.append(f"Patient: {patient.get('name', [{}])[0].get('given', [''])[0]} {patient.get('name', [{}])[0].get('family', '')}")
+        if patient.get('birthDate'):
+            summary_parts.append(f"DOB: {patient['birthDate']}")
+        if patient.get('gender'):
+            summary_parts.append(f"Gender: {patient['gender']}")
+    
+    # Current conditions
+    conditions = patient_data.get('conditions', [])
+    if conditions:
+        summary_parts.append("\nActive Conditions:")
+        for entry in conditions:
+            condition = entry.get('resource', {})
+            condition_name = condition.get('code', {}).get('text', 'Unknown condition')
+            summary_parts.append(f"- {condition_name}")
+    
+    # Current medications
+    medications = patient_data.get('medications', [])
+    if medications:
+        summary_parts.append("\nCurrent Medications:")
+        for entry in medications:
+            med = entry.get('resource', {})
+            med_name = med.get('medicationCodeableConcept', {}).get('text', 'Unknown medication')
+            med_date = med.get('authoredOn', '')
+            summary_parts.append(f"- {med_name} (started: {med_date})")
+    
+    # Recent encounters
+    encounters = patient_data.get('encounters', [])
+    if encounters:
+        summary_parts.append("\nRecent Encounters:")
+        for entry in encounters[-5:]:  # Last 5 encounters
+            encounter = entry.get('resource', {})
+            encounter_type = encounter.get('type', [{}])[0].get('text', 'Clinical encounter')
+            encounter_date = encounter.get('period', {}).get('start', '')
+            summary_parts.append(f"- {encounter_type} ({encounter_date})")
+    
+    return '\n'.join(summary_parts)
+
 @app.route('/config')
 def get_config():
     return jsonify({
