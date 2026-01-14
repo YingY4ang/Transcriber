@@ -158,6 +158,49 @@ def build_patient_summary(patient_data):
     
     return '\n'.join(summary_parts)
 
+@app.route('/handover-summary', methods=['POST'])
+def generate_handover_summary():
+    try:
+        data = request.json
+        clinician_notes = data.get('clinicianNotes', '')
+        patient_data = data.get('patientData', {})
+        
+        history = build_patient_summary(patient_data)
+        
+        prompt = f"""Create a clinical handover summary combining the clinician's notes with patient history.
+
+CLINICIAN'S HANDOVER NOTES:
+{clinician_notes}
+
+PATIENT HISTORY:
+{history}
+
+Generate a structured handover summary with:
+1. Patient Overview (brief)
+2. Current Presentation (from clinician notes)
+3. Relevant History & Medications
+4. Plan & Follow-up Required
+
+Keep it concise for quick handover reading:"""
+
+        bedrock = boto3.client('bedrock-runtime', region_name='ap-southeast-2')
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': 800,
+                'messages': [{'role': 'user', 'content': prompt}]
+            })
+        )
+        
+        ai_response = json.loads(response['body'].read())
+        summary = ai_response['content'][0]['text']
+        
+        return jsonify({'summary': summary})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/config')
 def get_config():
     return jsonify({
