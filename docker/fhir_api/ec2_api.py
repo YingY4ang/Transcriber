@@ -201,6 +201,46 @@ Keep it concise for quick handover reading:"""
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/extract-tasks', methods=['POST'])
+def extract_clinical_tasks():
+    try:
+        data = request.json
+        transcription = data.get('transcription', '')
+        
+        prompt = f"""Extract clinical tasks from this consultation transcription. Return ONLY valid JSON.
+
+TRANSCRIPTION:
+{transcription}
+
+Extract any mentioned:
+- New conditions/diagnoses
+- New medications (with dosage if mentioned)
+- Follow-up encounters needed
+
+Return JSON format:
+{{"conditions": ["condition1"], "medications": [{{"name": "med1", "dosage": "10mg"}}], "encounters": ["Follow-up in 2 weeks"]}}
+
+If none found for a category, use empty array. Return ONLY the JSON, no other text:"""
+
+        bedrock = boto3.client('bedrock-runtime', region_name='ap-southeast-2')
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': 500,
+                'messages': [{'role': 'user', 'content': prompt}]
+            })
+        )
+        
+        ai_response = json.loads(response['body'].read())
+        result_text = ai_response['content'][0]['text'].strip()
+        tasks = json.loads(result_text)
+        
+        return jsonify({'tasks': tasks})
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'tasks': {'conditions': [], 'medications': [], 'encounters': []}}), 200
+
 @app.route('/config')
 def get_config():
     return jsonify({

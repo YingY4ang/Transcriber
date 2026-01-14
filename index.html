@@ -26,9 +26,10 @@
       backdrop-filter: blur(10px);
       border-radius: 20px;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-      padding: 40px;
+      padding: 30px;
       width: 100%;
-      max-width: 600px;
+      max-width: 1200px;
+      min-height: 600px;
       animation: slideUp 0.6s ease-out;
     }
 
@@ -706,6 +707,422 @@
       margin-left: 4px;
     }
 
+    /* Recording split layout */
+    .recording-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      height: 100%;
+    }
+
+    .recording-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .recording-main {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .notes-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notes-area textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 300px;
+      padding: 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      line-height: 1.6;
+      resize: none;
+      font-family: inherit;
+    }
+
+    .notes-area textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .suggested-tasks {
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+
+    .suggested-tasks h4 {
+      margin: 0 0 12px 0;
+      color: #92400e;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .task-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .task-item .task-type {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .task-type.condition { background: #fee2e2; color: #991b1b; }
+    .task-type.medication { background: #dbeafe; color: #1e40af; }
+    .task-type.encounter { background: #d1fae5; color: #065f46; }
+
+    .task-item .task-name {
+      flex: 1;
+      color: #1f2937;
+    }
+
+    .btn-apply-tasks {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: #48bb78;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-apply-tasks:hover {
+      background: #38a169;
+    }
+
+    .recording-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .recording-controls button {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    @media (max-width: 768px) {
+      .recording-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Full-screen patient view */
+    .fullscreen-patient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #f5f7fa;
+      z-index: 100;
+      display: none;
+      overflow: hidden;
+    }
+
+    .fullscreen-patient.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .patient-topbar {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 15px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .patient-topbar h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .patient-topbar .nhi-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    .btn-back {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      min-width: auto;
+      flex: none;
+    }
+
+    .btn-back:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .patient-main {
+      display: grid;
+      grid-template-columns: 280px 1fr 1fr;
+      gap: 20px;
+      padding: 20px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .patient-sidebar {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .patient-sidebar h4 {
+      color: #667eea;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 25px;
+    }
+
+    .sidebar-item {
+      background: #f7fafc;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid #667eea;
+      font-size: 0.85rem;
+    }
+
+    .sidebar-item .date {
+      color: #718096;
+      font-size: 0.75rem;
+    }
+
+    .sidebar-item .title {
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    .btn-add-small {
+      width: 100%;
+      padding: 6px;
+      margin-top: 8px;
+      background: #edf2f7;
+      border: 1px dashed #cbd5e0;
+      border-radius: 6px;
+      color: #718096;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-add-small:hover {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .add-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .add-modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 300px;
+    }
+
+    .add-modal-content h4 {
+      margin: 0 0 15px 0;
+      color: #2d3748;
+    }
+
+    .add-modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-save-small, .btn-cancel-small {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-save-small {
+      background: #48bb78;
+      color: white;
+    }
+
+    .btn-cancel-small {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .panel-header {
+      background: #f8fafc;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      color: #2d3748;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .panel-content pre {
+      white-space: pre-wrap;
+      font-family: inherit;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .handover-item {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 4px solid #48bb78;
+    }
+
+    .handover-item .meta {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-bottom: 8px;
+    }
+
+    .handover-input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 100px;
+      margin-bottom: 10px;
+    }
+
+    .handover-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn-generate {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      min-width: auto;
+      flex: none;
+    }
+
+    .btn-generate:hover {
+      opacity: 0.9;
+    }
+
+    .btn-generate:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+    }
+
+    .btn-approve {
+      background: #48bb78;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .generated-summary {
+      background: #f0fff4;
+      border: 1px solid #9ae6b4;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+
+    .generated-summary .label {
+      font-size: 0.75rem;
+      color: #276749;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 1200px) {
+      .patient-main {
+        grid-template-columns: 1fr 1fr;
+      }
+      .patient-sidebar {
+        display: none;
+      }
+    }
+
     @media (max-width: 640px) {
       .container {
         padding: 20px;
@@ -739,53 +1156,78 @@
 
     <!-- Recording Tab -->
     <div id="recording-tab" class="tab-content active">
-      <div class="tips">
-        <span class="tips-icon">💡</span>
-        <div class="tips-text">
-          <strong>Audio Tips:</strong> Speak clearly, minimize background noise, position microphone 6-12 inches from mouth for optimal results
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="patientId">Patient NHI or ID</label>
-        <input id="patientId" placeholder="Enter patient identifier" type="text">
-      </div>
-
-      <div class="form-group">
-        <label for="micSelect">Microphone</label>
-        <select id="micSelect">
-          <option value="">Select Microphone...</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Select Audio File</label>
-        <div class="file-input-wrapper">
-          <input type="file" id="audioFile" accept="audio/*,.webm,.mp3,.wav,.m4a,.ogg" class="file-input">
-          <div class="file-input-display" id="fileDisplay">
-            <span>📁</span>
-            <span id="fileDisplayText">Select file</span>
+      <div class="recording-layout">
+        <!-- Left Sidebar -->
+        <div class="recording-sidebar">
+          <div class="form-group">
+            <label for="patientId">Patient NHI or ID</label>
+            <input id="patientId" placeholder="Enter patient identifier" type="text">
           </div>
+
+          <div class="form-group">
+            <label for="micSelect">Microphone</label>
+            <select id="micSelect">
+              <option value="">Select Microphone...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Audio File</label>
+            <div class="file-input-wrapper">
+              <input type="file" id="audioFile" accept="audio/*,.webm,.mp3,.wav,.m4a,.ogg" class="file-input">
+              <div class="file-input-display" id="fileDisplay">
+                <span>📁</span>
+                <span id="fileDisplayText">Select file</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="recording-controls">
+            <button id="record" class="btn-primary">🎤 Record</button>
+            <button id="uploadFile" class="btn-secondary">📤 Upload</button>
+          </div>
+
+          <button id="sendToFhir" class="btn-fhir">🏥 Send to FHIR</button>
+
+          <div id="progressContainer" class="progress-container">
+            <div class="progress-bar-wrapper">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="progressText" class="progress-text">0%</div>
+          </div>
+
+          <div id="status" class="status">Ready</div>
+          <div id="timer" class="timer">Time: <span id="timerValue">0</span>s</div>
+        </div>
+
+        <!-- Main Notes Area -->
+        <div class="recording-main">
+          <div class="tips" style="margin-bottom: 0;">
+            <span class="tips-icon">📝</span>
+            <div class="tips-text">Clinical notes - transcription will appear here after processing</div>
+          </div>
+          
+          <div class="notes-area">
+            <textarea id="clinicalNotes" placeholder="Write your clinical notes here...
+
+• Chief complaint
+• History of present illness  
+• Examination findings
+• Assessment
+• Plan
+
+Transcription results will be appended below when processing completes."></textarea>
+          </div>
+
+          <div id="suggestedTasks" class="suggested-tasks" style="display:none;">
+            <h4>📋 Suggested Actions <span style="font-weight:normal;font-size:0.8rem;color:#718096;">(AI-extracted - select to approve)</span></h4>
+            <div id="tasksList"></div>
+            <button id="applyTasks" class="btn-apply-tasks">✓ Apply Selected to Patient Record</button>
+          </div>
+
+          <div id="result" class="result"></div>
         </div>
       </div>
-
-      <div class="buttons">
-        <button id="record" class="btn-primary">🎤 Start Recording</button>
-        <button id="uploadFile" class="btn-secondary">📤 Upload Audio File</button>
-      </div>
-
-      <button id="sendToFhir" class="btn-fhir">🏥 Send to FHIR Server</button>
-
-      <div id="progressContainer" class="progress-container">
-        <div class="progress-bar-wrapper">
-          <div id="progressBar" class="progress-bar"></div>
-        </div>
-        <div id="progressText" class="progress-text">0%</div>
-      </div>
-
-      <div id="status" class="status">Ready to record or upload audio</div>
-      <div id="timer" class="timer">Processing time: <span id="timerValue">0</span>s</div>
-      <div id="result" class="result"></div>
     </div>
 
     <!-- Patient Search Tab -->
@@ -805,106 +1247,89 @@
           <p>Select a patient above or search by NHI</p>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div id="patientDetails" class="patient-details" style="display: none;">
-        <div class="patient-header">
-          <h3 id="patientName">Patient Name</h3>
-          <span id="patientNhi" class="patient-nhi">NHI: ABC1234</span>
+  <!-- Full-screen Patient View -->
+  <div id="fullscreenPatient" class="fullscreen-patient">
+    <div class="patient-topbar">
+      <button class="btn-back" onclick="closePatientView()">← Back</button>
+      <h2 id="fsPatientName">Patient Name</h2>
+      <span id="fsPatientNhi" class="nhi-badge">NHI: ABC1234</span>
+    </div>
+    
+    <div class="patient-main">
+      <!-- Left Sidebar: Patient Info -->
+      <div class="patient-sidebar">
+        <div class="sidebar-section">
+          <h4>👤 Demographics</h4>
+          <div class="sidebar-item">
+            <div class="date">Date of Birth</div>
+            <div class="title" id="fsDob">-</div>
+          </div>
+          <div class="sidebar-item">
+            <div class="date">Gender</div>
+            <div class="title" id="fsGender">-</div>
+          </div>
         </div>
         
-        <div class="patient-info-grid">
-          <div class="info-card" style="grid-column: 1 / -1;">
-            <h4>📋 Full Patient History Summary</h4>
-            <p style="font-size: 0.8rem; color: #718096; margin-bottom: 10px;"><em>AI-generated summary - verify before clinical use</em></p>
-            <div id="aiSummary" class="ai-summary">
-              <p class="no-data">Click below to generate a comprehensive summary of all patient records</p>
-            </div>
-            <button id="generateSummary" class="btn-ai" style="display: none;">📋 Summarise Full Patient History</button>
-            <div id="summaryApproval" style="display: none; margin-top: 10px;">
-              <button id="approveSummary" class="btn-save">✓ Approve & Save to Record</button>
-            </div>
-          </div>
+        <div class="sidebar-section">
+          <h4>🩺 Conditions</h4>
+          <div id="fsConditions"><p class="no-data">No conditions</p></div>
+          <button class="btn-add-small" onclick="showAddForm('condition')">+ Add</button>
+        </div>
+        
+        <div class="sidebar-section">
+          <h4>💊 Medications</h4>
+          <div id="fsMedications"><p class="no-data">No medications</p></div>
+          <button class="btn-add-small" onclick="showAddForm('medication')">+ Add</button>
+        </div>
+        
+        <div class="sidebar-section">
+          <h4>📅 Recent Encounters</h4>
+          <div id="fsEncounters"><p class="no-data">No encounters</p></div>
+          <button class="btn-add-small" onclick="showAddForm('encounter')">+ Add</button>
+        </div>
+      </div>
 
-          <div class="info-card" style="grid-column: 1 / -1;">
-            <h4>🔄 Clinical Handover</h4>
-            <p style="font-size: 0.8rem; color: #718096; margin-bottom: 10px;">Write your handover notes - AI will combine with patient history</p>
-            <textarea id="handoverNotes" class="form-input" rows="4" placeholder="Enter your clinical handover notes here (e.g., reason for visit, findings, plan, follow-up required)..." style="resize: vertical; margin-bottom: 10px;"></textarea>
-            <button id="generateHandover" class="btn-ai">📝 Generate Handover Summary</button>
-            <div id="handoverOutput" class="ai-summary" style="display: none; margin-top: 10px;"></div>
-            <div id="handoverApproval" style="display: none; margin-top: 10px;">
-              <button id="approveHandover" class="btn-save">✓ Approve & Save Handover</button>
-            </div>
+      <!-- Add Form Modal -->
+      <div id="addFormModal" class="add-modal" style="display:none;">
+        <div class="add-modal-content">
+          <h4 id="addFormTitle">Add</h4>
+          <input type="text" id="addFormInput" class="form-input" placeholder="Enter name...">
+          <input type="date" id="addFormDate" class="form-input" style="display:none;">
+          <div class="add-modal-buttons">
+            <button class="btn-save-small" onclick="saveNewItem()">Save</button>
+            <button class="btn-cancel-small" onclick="hideAddForm()">Cancel</button>
           </div>
+        </div>
+      </div>
 
-          <div class="info-card">
-            <h4>Demographics</h4>
-            <div class="info-item">
-              <span class="label">Date of Birth:</span>
-              <input type="date" id="patientDob" class="editable-input" data-field="birthDate">
-            </div>
-            <div class="info-item">
-              <span class="label">Gender:</span>
-              <select id="patientGender" class="editable-select" data-field="gender">
-                <option value="">Select...</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </div>
-            <div class="info-item">
-              <span class="label">Address:</span>
-              <span id="patientAddress" class="editable" data-field="address" contenteditable="true">-</span>
-            </div>
-            <div class="edit-actions">
-              <button id="savePatient" class="btn-save">💾 Save Changes</button>
-            </div>
+      <!-- Middle Panel: Full History -->
+      <div class="panel">
+        <div class="panel-header">
+          📋 Full Patient History
+          <button id="fsGenerateSummary" class="btn-generate" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">Generate AI Summary</button>
+        </div>
+        <div class="panel-content">
+          <div id="fsHistorySummary">
+            <p class="no-data">Click "Generate AI Summary" to create a comprehensive patient overview</p>
           </div>
+        </div>
+      </div>
 
-          <div class="info-card">
-            <h4>Recent Encounters</h4>
-            <div id="recentEncounters" class="encounters-list">
-              <p class="no-data">No recent encounters</p>
-            </div>
-            <div id="addEncounterForm" class="add-form" style="display: none;">
-              <input type="text" id="encounterTypeInput" placeholder="Enter encounter type (e.g., Consultation)" class="form-input">
-              <div class="form-buttons">
-                <button id="saveEncounter" class="btn-save-small">✓ Save</button>
-                <button id="cancelEncounter" class="btn-cancel-small">✗ Cancel</button>
-              </div>
-            </div>
-            <button id="addEncounter" class="btn-add">➕ Add Encounter</button>
-          </div>
-
-          <div class="info-card">
-            <h4>Current Medications</h4>
-            <div id="currentMedications" class="medications-list">
-              <p class="no-data">No current medications</p>
-            </div>
-            <div id="addMedicationForm" class="add-form" style="display: none;">
-              <input type="text" id="medicationNameInput" placeholder="Enter medication name" class="form-input">
-              <input type="date" id="medicationDateInput" placeholder="Start date" class="form-input">
-              <div class="form-buttons">
-                <button id="saveMedication" class="btn-save-small">✓ Save</button>
-                <button id="cancelMedication" class="btn-cancel-small">✗ Cancel</button>
-              </div>
-            </div>
-            <button id="addMedication" class="btn-add">➕ Add Medication</button>
-          </div>
-
-          <div class="info-card">
-            <h4>Conditions</h4>
-            <div id="patientConditions" class="conditions-list">
-              <p class="no-data">No active conditions</p>
-            </div>
-            <div id="addConditionForm" class="add-form" style="display: none;">
-              <input type="text" id="conditionNameInput" placeholder="Enter condition name" class="form-input">
-              <div class="form-buttons">
-                <button id="saveCondition" class="btn-save-small">✓ Save</button>
-                <button id="cancelCondition" class="btn-cancel-small">✗ Cancel</button>
-              </div>
-            </div>
-            <button id="addCondition" class="btn-add">➕ Add Condition</button>
+      <!-- Right Panel: Handovers -->
+      <div class="panel">
+        <div class="panel-header">🔄 Clinical Handovers</div>
+        <div class="panel-content">
+          <div id="fsPastHandovers"></div>
+          
+          <div style="border-top: 2px solid #e2e8f0; padding-top: 15px; margin-top: 15px;">
+            <strong style="color: #2d3748;">New Handover</strong>
+            <p style="font-size: 0.8rem; color: #718096; margin: 5px 0 10px;"><em>AI-generated - requires clinician approval</em></p>
+            <textarea id="fsHandoverNotes" class="handover-input" placeholder="Enter your handover notes (findings, plan, follow-up)..."></textarea>
+            <button id="fsGenerateHandover" class="btn-generate">📝 Generate Handover Summary</button>
+            <div id="fsHandoverOutput" style="display: none;"></div>
           </div>
         </div>
       </div>
@@ -996,224 +1421,191 @@
     async function selectPatient(patientId) {
       const response = await fetch(`http://localhost:8080/fhir/Patient/${patientId}`);
       const patient = await response.json();
-      displayPatientDetails(patient);
-      await fetchPatientEncounters(patientId);
-      await fetchPatientMedications(patientId);
-      await fetchPatientConditions(patientId);
+      window.currentPatient = patient;
+      openFullscreenPatient(patient);
+      await loadFullscreenData(patientId);
     }
 
-    async function searchPatient() {
-      const searchTerm = document.getElementById('searchNhi').value.trim();
-      if (!searchTerm) return;
-
-      const resultsDiv = document.getElementById('patientResults');
-      const detailsDiv = document.getElementById('patientDetails');
+    function openFullscreenPatient(patient) {
+      const name = patient.name?.[0] ? `${patient.name[0].given?.[0] || ''} ${patient.name[0].family || ''}`.trim() : 'Unknown';
+      const nhi = patient.identifier?.[0]?.value || patient.id;
       
-      resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">⏳</span><p>Searching...</p></div>';
-      detailsDiv.style.display = 'none';
+      document.getElementById('fsPatientName').textContent = name;
+      document.getElementById('fsPatientNhi').textContent = `NHI: ${nhi}`;
+      document.getElementById('fsDob').textContent = patient.birthDate || '-';
+      document.getElementById('fsGender').textContent = patient.gender || '-';
+      document.getElementById('fullscreenPatient').classList.add('active');
+    }
+
+    function closePatientView() {
+      document.getElementById('fullscreenPatient').classList.remove('active');
+    }
+
+    let addFormType = '';
+
+    window.showAddForm = function(type) {
+      addFormType = type;
+      const titles = { condition: 'Add Condition', medication: 'Add Medication', encounter: 'Add Encounter' };
+      document.getElementById('addFormTitle').textContent = titles[type];
+      document.getElementById('addFormInput').placeholder = type === 'encounter' ? 'e.g., Consultation, Follow-up' : `Enter ${type} name...`;
+      document.getElementById('addFormDate').style.display = type === 'medication' ? 'block' : 'none';
+      document.getElementById('addFormInput').value = '';
+      document.getElementById('addFormDate').value = '';
+      document.getElementById('addFormModal').style.display = 'flex';
+      document.getElementById('addFormInput').focus();
+    }
+
+    window.hideAddForm = function() {
+      document.getElementById('addFormModal').style.display = 'none';
+    }
+
+    window.saveNewItem = async function() {
+      const name = document.getElementById('addFormInput').value.trim();
+      if (!name) { alert('Please enter a name'); return; }
+      if (!window.currentPatient) { alert('No patient selected'); return; }
+
+      const patientId = window.currentPatient.id;
+      let resource, endpoint;
+
+      if (addFormType === 'condition') {
+        endpoint = 'Condition';
+        resource = { resourceType: 'Condition', subject: { reference: `Patient/${patientId}` }, code: { text: name }, clinicalStatus: { coding: [{ code: 'active' }] } };
+      } else if (addFormType === 'medication') {
+        endpoint = 'MedicationRequest';
+        resource = { resourceType: 'MedicationRequest', status: 'active', intent: 'order', subject: { reference: `Patient/${patientId}` }, medicationCodeableConcept: { text: name }, authoredOn: document.getElementById('addFormDate').value || new Date().toISOString().split('T')[0] };
+      } else {
+        endpoint = 'Encounter';
+        resource = { resourceType: 'Encounter', status: 'finished', class: { code: 'AMB' }, type: [{ text: name }], subject: { reference: `Patient/${patientId}` }, period: { start: new Date().toISOString() } };
+      }
 
       try {
-        // Search in local FHIR server
-        const response = await fetch(`http://localhost:8080/fhir/Patient?identifier=https://standards.digital.health.nz/ns/nhi-id|${searchTerm}`);
-        const bundle = await response.json();
-
-        if (bundle.total > 0) {
-          const patient = bundle.entry[0].resource;
-          displayPatientDetails(patient);
-          
-          // Fetch additional data
-          await fetchPatientEncounters(patient.id);
-          await fetchPatientMedications(patient.id);
-          await fetchPatientConditions(patient.id);
-        } else {
-          resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">❌</span><p>No patient found with that NHI</p></div>';
+        const res = await fetch(`http://localhost:8080/fhir/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/fhir+json' },
+          body: JSON.stringify(resource)
+        });
+        
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(err);
         }
-      } catch (error) {
-        console.error('Search error:', error);
-        resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">⚠️</span><p>Search failed. Please try again.</p></div>';
+        
+        // Close modal
+        document.getElementById('addFormModal').style.display = 'none';
+        
+        // Immediately add to UI
+        const newItem = `<div class="sidebar-item"><div class="title">${name}</div></div>`;
+        if (addFormType === 'condition') {
+          const container = document.getElementById('fsConditions');
+          if (container.querySelector('.no-data')) container.innerHTML = '';
+          container.insertAdjacentHTML('beforeend', newItem);
+        } else if (addFormType === 'medication') {
+          const container = document.getElementById('fsMedications');
+          if (container.querySelector('.no-data')) container.innerHTML = '';
+          container.insertAdjacentHTML('beforeend', newItem);
+        } else {
+          const container = document.getElementById('fsEncounters');
+          if (container.querySelector('.no-data')) container.innerHTML = '';
+          container.insertAdjacentHTML('beforeend', newItem);
+        }
+        
+      } catch (e) {
+        alert('Failed to save: ' + e.message);
       }
     }
 
-    function displayPatientDetails(patient) {
-      const resultsDiv = document.getElementById('patientResults');
-      const detailsDiv = document.getElementById('patientDetails');
-      
-      resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">✅</span><p>Patient found</p></div>';
-      
-      // Update patient header
-      document.getElementById('patientName').textContent = 
-        patient.name ? `${patient.name[0].given?.[0] || ''} ${patient.name[0].family || ''}`.trim() : 'Unknown';
-      document.getElementById('patientNhi').textContent = 
-        `NHI: ${patient.identifier?.[0]?.value || 'Unknown'}`;
-      
-      // Update demographics
-      document.getElementById('patientDob').value = patient.birthDate || '';
-      document.getElementById('patientGender').value = patient.gender || '';
-      document.getElementById('patientAddress').textContent = 
-        patient.address?.[0]?.text || patient.address?.[0]?.line?.[0] || '-';
-      
-      detailsDiv.style.display = 'block';
-      
-      // Store current patient for editing
-      window.currentPatient = patient;
-      
-      // Show AI summary button
-      document.getElementById('generateSummary').style.display = 'block';
+    async function loadFullscreenData(patientId) {
+      const [encounters, medications, conditions, handovers] = await Promise.all([
+        fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=20&_sort=-date`).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=20`).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=20`).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&type:text=Handover&_count=20&_sort=-date`).then(r => r.json()).catch(() => ({ entry: [] }))
+      ]);
+
+      // Sidebar: Conditions
+      document.getElementById('fsConditions').innerHTML = conditions.entry?.length 
+        ? conditions.entry.map(e => `<div class="sidebar-item"><div class="title">${e.resource.code?.text || 'Unknown'}</div></div>`).join('')
+        : '<p class="no-data">No conditions</p>';
+
+      // Sidebar: Medications
+      document.getElementById('fsMedications').innerHTML = medications.entry?.length
+        ? medications.entry.map(e => `<div class="sidebar-item"><div class="title">${e.resource.medicationCodeableConcept?.text || 'Unknown'}</div><div class="date">${e.resource.authoredOn || ''}</div></div>`).join('')
+        : '<p class="no-data">No medications</p>';
+
+      // Sidebar: Encounters
+      document.getElementById('fsEncounters').innerHTML = encounters.entry?.length
+        ? encounters.entry.slice(0, 10).map(e => `<div class="sidebar-item"><div class="title">${e.resource.type?.[0]?.text || 'Encounter'}</div><div class="date">${e.resource.period?.start ? new Date(e.resource.period.start).toLocaleDateString() : ''}</div></div>`).join('')
+        : '<p class="no-data">No encounters</p>';
+
+      // Past Handovers
+      document.getElementById('fsPastHandovers').innerHTML = handovers.entry?.length
+        ? handovers.entry.map(e => {
+            const content = e.resource.content?.[0]?.attachment?.data ? atob(e.resource.content[0].attachment.data) : 'No content';
+            const date = e.resource.date ? new Date(e.resource.date).toLocaleString() : '';
+            return `<div class="handover-item"><div class="meta">📅 ${date}</div><pre>${content}</pre></div>`;
+          }).join('')
+        : '<p class="no-data">No previous handovers</p>';
+
+      // Store data for AI summary
+      window.currentPatientData = { patient: window.currentPatient, encounters: encounters.entry || [], medications: medications.entry || [], conditions: conditions.entry || [] };
     }
 
-    // Generate AI Summary - Full Patient History
-    document.getElementById('generateSummary').addEventListener('click', async () => {
-      if (!window.currentPatient) return;
+    // Full-screen: Generate AI Summary
+    document.getElementById('fsGenerateSummary').addEventListener('click', async () => {
+      const btn = document.getElementById('fsGenerateSummary');
+      const output = document.getElementById('fsHistorySummary');
       
-      const btn = document.getElementById('generateSummary');
-      const summaryDiv = document.getElementById('aiSummary');
-      const approvalDiv = document.getElementById('summaryApproval');
-      
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      output.innerHTML = '<p style="color: #667eea;">🤖 Analysing patient history...</p>';
+
       try {
-        btn.disabled = true;
-        btn.textContent = '📋 Generating...';
-        approvalDiv.style.display = 'none';
-        summaryDiv.innerHTML = '<p style="color: #667eea;">🤖 Analysing complete patient history...</p>';
-        
-        // Fetch ALL patient data (increased count for full history)
-        const patientId = window.currentPatient.id;
-        const [encountersRes, medicationsRes, conditionsRes] = await Promise.all([
-          fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=100&_sort=-date`),
-          fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=100`),
-          fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=100`)
-        ]);
-        
-        const [encounters, medications, conditions] = await Promise.all([
-          encountersRes.json(), medicationsRes.json(), conditionsRes.json()
-        ]);
-        
-        const patientData = {
-          patient: window.currentPatient,
-          encounters: encounters.entry || [],
-          medications: medications.entry || [],
-          conditions: conditions.entry || []
-        };
-        
         const response = await fetch(`${API_URL}/ai-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId, patientData })
+          body: JSON.stringify({ patientId: window.currentPatient.id, patientData: window.currentPatientData })
         });
-        
-        if (response.ok) {
-          const result = await response.json();
-          summaryDiv.innerHTML = `<div style="white-space: pre-wrap;">${result.summary}</div>`;
-          approvalDiv.style.display = 'block';
-          window.currentSummary = result.summary;
-        } else {
-          throw new Error('Failed to generate summary');
-        }
-      } catch (error) {
-        summaryDiv.innerHTML = '<p style="color: #e53e3e;">❌ Failed to generate summary. Please try again.</p>';
+        const result = await response.json();
+        output.innerHTML = `<div class="generated-summary"><div class="label">⚠️ AI-Generated - Verify before clinical use</div><pre>${result.summary}</pre></div>`;
+      } catch (e) {
+        output.innerHTML = '<p style="color: #e53e3e;">❌ Failed to generate summary</p>';
       } finally {
         btn.disabled = false;
-        btn.textContent = '📋 Summarise Full Patient History';
+        btn.textContent = 'Generate AI Summary';
       }
     });
 
-    // Approve and save summary to patient record
-    document.getElementById('approveSummary').addEventListener('click', async () => {
-      if (!window.currentPatient || !window.currentSummary) return;
-      
-      try {
-        const docRef = {
-          resourceType: 'DocumentReference',
-          status: 'current',
-          type: { text: 'AI Clinical Summary' },
-          subject: { reference: `Patient/${window.currentPatient.id}` },
-          date: new Date().toISOString(),
-          content: [{ attachment: { contentType: 'text/plain', data: btoa(window.currentSummary) } }]
-        };
-        
-        const response = await fetch('http://localhost:8080/fhir/DocumentReference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/fhir+json' },
-          body: JSON.stringify(docRef)
-        });
-        
-        if (response.ok) {
-          alert('✅ Summary approved and saved to patient record');
-          document.getElementById('summaryApproval').style.display = 'none';
-        } else {
-          throw new Error('Failed to save');
-        }
-      } catch (error) {
-        alert('❌ Failed to save summary: ' + error.message);
-      }
-    });
+    // Full-screen: Generate Handover
+    document.getElementById('fsGenerateHandover').addEventListener('click', async () => {
+      const notes = document.getElementById('fsHandoverNotes').value.trim();
+      if (!notes) { alert('Please enter handover notes'); return; }
 
-    // Generate Handover Summary
-    document.getElementById('generateHandover').addEventListener('click', async () => {
-      if (!window.currentPatient) return;
-      
-      const notes = document.getElementById('handoverNotes').value.trim();
-      if (!notes) {
-        alert('Please enter your handover notes first');
-        return;
-      }
-      
-      const btn = document.getElementById('generateHandover');
-      const outputDiv = document.getElementById('handoverOutput');
-      const approvalDiv = document.getElementById('handoverApproval');
-      
+      const btn = document.getElementById('fsGenerateHandover');
+      const output = document.getElementById('fsHandoverOutput');
+
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      output.style.display = 'block';
+      output.innerHTML = '<p style="color: #667eea;">🤖 Creating handover...</p>';
+
       try {
-        btn.disabled = true;
-        btn.textContent = '📝 Generating...';
-        outputDiv.style.display = 'block';
-        outputDiv.innerHTML = '<p style="color: #667eea;">🤖 Creating handover summary...</p>';
-        approvalDiv.style.display = 'none';
-        
-        const patientId = window.currentPatient.id;
-        const [encountersRes, medicationsRes, conditionsRes] = await Promise.all([
-          fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=20&_sort=-date`),
-          fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=20`),
-          fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=20`)
-        ]);
-        
-        const [encounters, medications, conditions] = await Promise.all([
-          encountersRes.json(), medicationsRes.json(), conditionsRes.json()
-        ]);
-        
         const response = await fetch(`${API_URL}/handover-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId,
-            clinicianNotes: notes,
-            patientData: {
-              patient: window.currentPatient,
-              encounters: encounters.entry || [],
-              medications: medications.entry || [],
-              conditions: conditions.entry || []
-            }
-          })
+          body: JSON.stringify({ patientId: window.currentPatient.id, clinicianNotes: notes, patientData: window.currentPatientData })
         });
-        
-        if (response.ok) {
-          const result = await response.json();
-          outputDiv.innerHTML = `<div style="white-space: pre-wrap;">${result.summary}</div>`;
-          approvalDiv.style.display = 'block';
-          window.currentHandover = result.summary;
-        } else {
-          throw new Error('Failed to generate handover');
-        }
-      } catch (error) {
-        outputDiv.innerHTML = '<p style="color: #e53e3e;">❌ Failed to generate handover. Please try again.</p>';
+        const result = await response.json();
+        window.currentHandover = result.summary;
+        output.innerHTML = `<div class="generated-summary"><div class="label">⚠️ AI-Generated - Verify before clinical use</div><pre>${result.summary}</pre><button class="btn-approve" onclick="approveHandover()">✓ Approve & Save</button></div>`;
+      } catch (e) {
+        output.innerHTML = '<p style="color: #e53e3e;">❌ Failed to generate handover</p>';
       } finally {
         btn.disabled = false;
         btn.textContent = '📝 Generate Handover Summary';
       }
     });
 
-    // Approve and save handover
-    document.getElementById('approveHandover').addEventListener('click', async () => {
-      if (!window.currentPatient || !window.currentHandover) return;
-      
+    async function approveHandover() {
       try {
         const docRef = {
           resourceType: 'DocumentReference',
@@ -1221,318 +1613,40 @@
           type: { text: 'Clinical Handover' },
           subject: { reference: `Patient/${window.currentPatient.id}` },
           date: new Date().toISOString(),
-          author: [{ display: 'Clinician' }],
           content: [{ attachment: { contentType: 'text/plain', data: btoa(window.currentHandover) } }]
         };
-        
-        const response = await fetch('http://localhost:8080/fhir/DocumentReference', {
+        await fetch('http://localhost:8080/fhir/DocumentReference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/fhir+json' },
           body: JSON.stringify(docRef)
         });
-        
-        if (response.ok) {
-          alert('✅ Handover approved and saved');
-          document.getElementById('handoverApproval').style.display = 'none';
-          document.getElementById('handoverNotes').value = '';
-        } else {
-          throw new Error('Failed to save');
-        }
-      } catch (error) {
-        alert('❌ Failed to save handover: ' + error.message);
-      }
-    });
-
-    // Save patient changes
-    document.getElementById('savePatient').addEventListener('click', async () => {
-      if (!window.currentPatient) return;
-      
-      try {
-        const updatedPatient = {
-          resourceType: 'Patient',
-          id: window.currentPatient.id,
-          identifier: window.currentPatient.identifier,
-          name: window.currentPatient.name || [{ family: 'Unknown' }],
-          birthDate: document.getElementById('patientDob').value || undefined,
-          gender: document.getElementById('patientGender').value || undefined,
-          address: document.getElementById('patientAddress').textContent.trim() !== '-' ? 
-            [{ text: document.getElementById('patientAddress').textContent.trim() }] : undefined
-        };
-        
-        // Update patient in FHIR server
-        const response = await fetch(`http://localhost:8080/fhir/Patient/${window.currentPatient.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/fhir+json'
-          },
-          body: JSON.stringify(updatedPatient)
-        });
-        
-        if (response.ok) {
-          alert('✅ Patient updated successfully!');
-          window.currentPatient = updatedPatient;
-        } else {
-          const errorText = await response.text();
-          console.error('FHIR server error details:', errorText);
-          throw new Error(`Failed to update patient: ${response.status} - ${errorText}`);
-        }
-      } catch (error) {
-        alert(`❌ Failed to save changes: ${error.message}`);
-        console.error('Save error:', error);
-      }
-    });
-
-    // Add new encounter
-    document.getElementById('addEncounter').addEventListener('click', () => {
-      document.getElementById('addEncounterForm').style.display = 'block';
-      document.getElementById('addEncounter').style.display = 'none';
-      document.getElementById('encounterTypeInput').focus();
-    });
-
-    document.getElementById('saveEncounter').addEventListener('click', () => {
-      const encounterType = document.getElementById('encounterTypeInput').value.trim();
-      if (encounterType && window.currentPatient) {
-        addNewEncounter(window.currentPatient.id, encounterType);
-        document.getElementById('encounterTypeInput').value = '';
-        document.getElementById('addEncounterForm').style.display = 'none';
-        document.getElementById('addEncounter').style.display = 'block';
-      }
-    });
-
-    document.getElementById('cancelEncounter').addEventListener('click', () => {
-      document.getElementById('encounterTypeInput').value = '';
-      document.getElementById('addEncounterForm').style.display = 'none';
-      document.getElementById('addEncounter').style.display = 'block';
-    });
-
-    // Add new medication
-    document.getElementById('addMedication').addEventListener('click', () => {
-      document.getElementById('addMedicationForm').style.display = 'block';
-      document.getElementById('addMedication').style.display = 'none';
-      document.getElementById('medicationNameInput').focus();
-    });
-
-    document.getElementById('saveMedication').addEventListener('click', () => {
-      const medicationName = document.getElementById('medicationNameInput').value.trim();
-      const medicationDate = document.getElementById('medicationDateInput').value;
-      if (medicationName && window.currentPatient) {
-        addNewMedication(window.currentPatient.id, medicationName, medicationDate);
-        document.getElementById('medicationNameInput').value = '';
-        document.getElementById('medicationDateInput').value = '';
-        document.getElementById('addMedicationForm').style.display = 'none';
-        document.getElementById('addMedication').style.display = 'block';
-      }
-    });
-
-    document.getElementById('cancelMedication').addEventListener('click', () => {
-      document.getElementById('medicationNameInput').value = '';
-      document.getElementById('medicationDateInput').value = '';
-      document.getElementById('addMedicationForm').style.display = 'none';
-      document.getElementById('addMedication').style.display = 'block';
-    });
-
-    // Add new condition
-    document.getElementById('addCondition').addEventListener('click', () => {
-      document.getElementById('addConditionForm').style.display = 'block';
-      document.getElementById('addCondition').style.display = 'none';
-      document.getElementById('conditionNameInput').focus();
-    });
-
-    document.getElementById('saveCondition').addEventListener('click', () => {
-      const conditionName = document.getElementById('conditionNameInput').value.trim();
-      if (conditionName && window.currentPatient) {
-        addNewCondition(window.currentPatient.id, conditionName);
-        document.getElementById('conditionNameInput').value = '';
-        document.getElementById('addConditionForm').style.display = 'none';
-        document.getElementById('addCondition').style.display = 'block';
-      }
-    });
-
-    document.getElementById('cancelCondition').addEventListener('click', () => {
-      document.getElementById('conditionNameInput').value = '';
-      document.getElementById('addConditionForm').style.display = 'none';
-      document.getElementById('addCondition').style.display = 'block';
-    });
-
-    async function addNewEncounter(patientId, encounterType) {
-      try {
-        const encounter = {
-          resourceType: 'Encounter',
-          status: 'finished',
-          class: { code: 'AMB', display: 'ambulatory' },
-          type: [{ text: encounterType }],
-          subject: { reference: `Patient/${patientId}` },
-          period: { start: new Date().toISOString() }
-        };
-        
-        const response = await fetch('http://localhost:8080/fhir/Encounter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/fhir+json' },
-          body: JSON.stringify(encounter)
-        });
-        
-        if (response.ok) {
-          // Show success message in a separate area
-          const successMsg = document.createElement('div');
-          successMsg.textContent = '✅ Encounter added successfully!';
-          successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 8px; border-radius: 4px; margin: 5px 0; font-size: 0.8rem; position: fixed; top: 20px; right: 20px; z-index: 1000;';
-          document.body.appendChild(successMsg);
-          setTimeout(() => successMsg.remove(), 3000);
-          
-          // Refresh the encounters list
-          await fetchPatientEncounters(patientId);
-        } else {
-          throw new Error(`Failed to add encounter: ${response.status}`);
-        }
-      } catch (error) {
-        alert(`❌ Failed to add encounter: ${error.message}`);
+        alert('✅ Handover saved');
+        document.getElementById('fsHandoverNotes').value = '';
+        document.getElementById('fsHandoverOutput').style.display = 'none';
+        await loadFullscreenData(window.currentPatient.id);
+      } catch (e) {
+        alert('❌ Failed to save: ' + e.message);
       }
     }
 
-    async function addNewMedication(patientId, medicationName, medicationDate) {
-      try {
-        const medication = {
-          resourceType: 'MedicationRequest',
-          status: 'active',
-          intent: 'order',
-          subject: { reference: `Patient/${patientId}` },
-          medicationCodeableConcept: { text: medicationName },
-          authoredOn: medicationDate || new Date().toISOString()
-        };
-        
-        const response = await fetch('http://localhost:8080/fhir/MedicationRequest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/fhir+json' },
-          body: JSON.stringify(medication)
-        });
-        
-        if (response.ok) {
-          // Show success message in a separate area
-          const successMsg = document.createElement('div');
-          successMsg.textContent = '✅ Medication added successfully!';
-          successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 8px; border-radius: 4px; margin: 5px 0; font-size: 0.8rem; position: fixed; top: 20px; right: 20px; z-index: 1000;';
-          document.body.appendChild(successMsg);
-          setTimeout(() => successMsg.remove(), 3000);
-          
-          // Refresh the medications list
-          await fetchPatientMedications(patientId);
-        } else {
-          throw new Error(`Failed to add medication: ${response.status}`);
-        }
-      } catch (error) {
-        alert(`❌ Failed to add medication: ${error.message}`);
-      }
-    }
+    async function searchPatient() {
+      const searchTerm = document.getElementById('searchNhi').value.trim();
+      if (!searchTerm) return;
 
-    async function addNewCondition(patientId, conditionName) {
-      try {
-        const condition = {
-          resourceType: 'Condition',
-          subject: { reference: `Patient/${patientId}` },
-          code: { text: conditionName },
-          clinicalStatus: { coding: [{ code: 'active' }] }
-        };
-        
-        const response = await fetch('http://localhost:8080/fhir/Condition', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/fhir+json' },
-          body: JSON.stringify(condition)
-        });
-        
-        if (response.ok) {
-          // Show success message in a separate area
-          const successMsg = document.createElement('div');
-          successMsg.textContent = '✅ Condition added successfully!';
-          successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 8px; border-radius: 4px; margin: 5px 0; font-size: 0.8rem; position: fixed; top: 20px; right: 20px; z-index: 1000;';
-          document.body.appendChild(successMsg);
-          setTimeout(() => successMsg.remove(), 3000);
-          
-          // Refresh the conditions list
-          await fetchPatientConditions(patientId);
-        } else {
-          throw new Error(`Failed to add condition: ${response.status}`);
-        }
-      } catch (error) {
-        alert(`❌ Failed to add condition: ${error.message}`);
-      }
-    }
+      const resultsDiv = document.getElementById('patientResults');
+      resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">⏳</span><p>Searching...</p></div>';
 
-    async function fetchPatientEncounters(patientId) {
       try {
-        console.log('Fetching encounters for patient:', patientId);
-        const response = await fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=10`);
+        const response = await fetch(`http://localhost:8080/fhir/Patient?identifier=https://standards.digital.health.nz/ns/nhi-id|${searchTerm}`);
         const bundle = await response.json();
-        console.log('Encounters response:', bundle);
-        
-        const encountersDiv = document.getElementById('recentEncounters');
-        if (bundle.total > 0) {
-          encountersDiv.innerHTML = bundle.entry.map(entry => {
-            const encounter = entry.resource;
-            const date = encounter.period?.start ? new Date(encounter.period.start).toLocaleDateString() : 'Unknown date';
-            return `
-              <div class="encounter-item">
-                <div class="encounter-date">${date}</div>
-                <div class="encounter-type">${encounter.type?.[0]?.text || encounter.class?.display || 'Clinical encounter'}</div>
-              </div>
-            `;
-          }).join('');
-        } else {
-          encountersDiv.innerHTML = '<p class="no-data">No recent encounters</p>';
-        }
-      } catch (error) {
-        console.error('Error fetching encounters:', error);
-      }
-    }
 
-    async function fetchPatientMedications(patientId) {
-      try {
-        console.log('Fetching medications for patient:', patientId);
-        const response = await fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=10`);
-        const bundle = await response.json();
-        console.log('Medications response:', bundle);
-        
-        const medicationsDiv = document.getElementById('currentMedications');
         if (bundle.total > 0) {
-          medicationsDiv.innerHTML = bundle.entry.map(entry => {
-            const medication = entry.resource;
-            const date = medication.authoredOn ? new Date(medication.authoredOn).toLocaleDateString() : 'Unknown date';
-            return `
-              <div class="medication-item">
-                <div class="medication-date">${date}</div>
-                <div class="medication-name">${medication.medicationCodeableConcept?.text || 'Unknown medication'}</div>
-              </div>
-            `;
-          }).join('');
+          selectPatient(bundle.entry[0].resource.id);
         } else {
-          medicationsDiv.innerHTML = '<p class="no-data">No current medications</p>';
+          resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">❌</span><p>No patient found with that NHI</p></div>';
         }
       } catch (error) {
-        console.error('Error fetching medications:', error);
-      }
-    }
-
-    async function fetchPatientConditions(patientId) {
-      try {
-        console.log('Fetching conditions for patient:', patientId);
-        const response = await fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&clinical-status=active&_count=10`);
-        const bundle = await response.json();
-        console.log('Conditions response:', bundle);
-        
-        const conditionsDiv = document.getElementById('patientConditions');
-        if (bundle.total > 0) {
-          conditionsDiv.innerHTML = bundle.entry.map(entry => {
-            const condition = entry.resource;
-            return `
-              <div class="condition-item">
-                <div class="condition-name">${condition.code?.text || 'Unknown condition'}</div>
-              </div>
-            `;
-          }).join('');
-        } else {
-          conditionsDiv.innerHTML = '<p class="no-data">No active conditions</p>';
-        }
-      } catch (error) {
-        console.error('Error fetching conditions:', error);
+        resultsDiv.innerHTML = '<div class="no-results"><span class="no-results-icon">⚠️</span><p>Search failed</p></div>';
       }
     }
 
@@ -1751,6 +1865,11 @@
               currentFhirBundle = resultData.fhir_bundle;
               sendToFhirBtn.style.display = 'inline-block';
             }
+
+            // Extract suggested tasks from transcription
+            if (resultData.transcription) {
+              extractSuggestedTasks(resultData.transcription);
+            }
           } catch (err) {
             status.textContent = 'Error: ' + err.message;
           }
@@ -1851,6 +1970,11 @@
           currentFhirBundle = resultData.fhir_bundle;
           sendToFhirBtn.style.display = 'inline-block';
         }
+
+        // Extract suggested tasks from transcription
+        if (resultData.transcription) {
+          extractSuggestedTasks(resultData.transcription);
+        }
         
         // Stop timer
         if (timerInterval) {
@@ -1910,6 +2034,77 @@
       }
       throw new Error('Processing timeout');
     }
+
+    // Extract suggested tasks from transcription
+    async function extractSuggestedTasks(transcription) {
+      const tasksDiv = document.getElementById('suggestedTasks');
+      const tasksList = document.getElementById('tasksList');
+      
+      try {
+        const response = await fetch(`${API_URL}/extract-tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcription })
+        });
+        
+        const { tasks } = await response.json();
+        if (!tasks) return;
+        
+        let html = '';
+        (tasks.conditions || []).forEach((c, i) => {
+          html += `<div class="task-item"><input type="checkbox" data-type="condition" data-value="${c}" id="task-c-${i}"><span class="task-type condition">Condition</span><span class="task-name">${c}</span></div>`;
+        });
+        (tasks.medications || []).forEach((m, i) => {
+          const name = typeof m === 'string' ? m : `${m.name}${m.dosage ? ' ' + m.dosage : ''}`;
+          html += `<div class="task-item"><input type="checkbox" data-type="medication" data-value="${name}" id="task-m-${i}"><span class="task-type medication">Medication</span><span class="task-name">${name}</span></div>`;
+        });
+        (tasks.encounters || []).forEach((e, i) => {
+          html += `<div class="task-item"><input type="checkbox" data-type="encounter" data-value="${e}" id="task-e-${i}"><span class="task-type encounter">Encounter</span><span class="task-name">${e}</span></div>`;
+        });
+        
+        if (html) {
+          tasksList.innerHTML = html;
+          tasksDiv.style.display = 'block';
+        }
+      } catch (e) {
+        console.error('Failed to extract tasks:', e);
+      }
+    }
+
+    // Apply selected tasks to patient record
+    document.getElementById('applyTasks').addEventListener('click', async () => {
+      const patientId = document.getElementById('patientId').value.trim();
+      if (!patientId) { alert('Enter Patient ID first'); return; }
+      
+      const checked = document.querySelectorAll('#tasksList input:checked');
+      if (!checked.length) { alert('Select at least one task'); return; }
+      
+      for (const cb of checked) {
+        const type = cb.dataset.type;
+        const value = cb.dataset.value;
+        let resource, endpoint;
+        
+        if (type === 'condition') {
+          endpoint = 'Condition';
+          resource = { resourceType: 'Condition', subject: { reference: `Patient/${patientId}` }, code: { text: value }, clinicalStatus: { coding: [{ code: 'active' }] } };
+        } else if (type === 'medication') {
+          endpoint = 'MedicationRequest';
+          resource = { resourceType: 'MedicationRequest', status: 'active', intent: 'order', subject: { reference: `Patient/${patientId}` }, medicationCodeableConcept: { text: value }, authoredOn: new Date().toISOString() };
+        } else {
+          endpoint = 'Encounter';
+          resource = { resourceType: 'Encounter', status: 'planned', class: { code: 'AMB' }, type: [{ text: value }], subject: { reference: `Patient/${patientId}` }, period: { start: new Date().toISOString() } };
+        }
+        
+        await fetch(`http://localhost:8080/fhir/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/fhir+json' },
+          body: JSON.stringify(resource)
+        });
+      }
+      
+      alert(`✅ ${checked.length} item(s) added to patient record`);
+      document.getElementById('suggestedTasks').style.display = 'none';
+    });
 
     // Send FHIR bundle to server
     sendToFhirBtn.onclick = async () => {
