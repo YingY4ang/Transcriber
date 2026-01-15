@@ -1898,9 +1898,11 @@ Transcription results will be appended below when processing completes."></texta
             }
 
             // Generate clinical notes from transcription
-            if (resultData.transcription) {
-              extractSuggestedTasks(resultData.transcription);
-              generateClinicalNotes(resultData.transcription);
+            console.log('Full resultData:', resultData);
+            const transcriptText = resultData.transcription || resultData.transcript || resultData.text || '';
+            if (transcriptText) {
+              extractSuggestedTasks(transcriptText);
+              generateClinicalNotes(transcriptText);
             }
           } catch (err) {
             status.textContent = 'Error: ' + err.message;
@@ -2004,9 +2006,11 @@ Transcription results will be appended below when processing completes."></texta
         }
 
         // Generate clinical notes from transcription
-        if (resultData.transcription) {
-          extractSuggestedTasks(resultData.transcription);
-          generateClinicalNotes(resultData.transcription);
+        console.log('Full resultData:', resultData);
+        const transcriptText = resultData.transcription || resultData.transcript || resultData.text || '';
+        if (transcriptText) {
+          extractSuggestedTasks(transcriptText);
+          generateClinicalNotes(transcriptText);
         }
         
         // Stop timer
@@ -2071,7 +2075,8 @@ Transcription results will be appended below when processing completes."></texta
     // Generate clinical notes from transcription
     async function generateClinicalNotes(transcription) {
       const notesArea = document.getElementById('clinicalNotes');
-      notesArea.value = 'Generating clinical notes...';
+      notesArea.value = '⏳ Generating clinical notes...';
+      console.log('Generating notes for:', transcription);
       
       try {
         const response = await fetch(`${API_URL}/generate-notes`, {
@@ -2080,11 +2085,29 @@ Transcription results will be appended below when processing completes."></texta
           body: JSON.stringify({ transcription })
         });
         
-        const { notes } = await response.json();
-        notesArea.value = notes || transcription;
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.notes) {
+          notesArea.value = data.notes;
+        } else {
+          notesArea.value = transcription;
+        }
       } catch (e) {
+        console.error('Generate notes error:', e);
         notesArea.value = transcription;
       }
+      
+      showNotification('✅ Transcription complete - notes ready for review');
+    }
+
+    function showNotification(message) {
+      const notif = document.createElement('div');
+      notif.textContent = message;
+      notif.style.cssText = 'position:fixed;top:20px;right:20px;background:#48bb78;color:white;padding:12px 20px;border-radius:8px;font-weight:600;z-index:9999;animation:fadeIn 0.3s';
+      document.body.appendChild(notif);
+      setTimeout(() => notif.remove(), 4000);
     }
 
     // Format transcription result nicely
