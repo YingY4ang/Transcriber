@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Clinical Recorder</title>
   <style>
     * {
@@ -276,16 +279,47 @@
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
-      padding: 20px;
-      margin-top: 20px;
-      max-height: 400px;
-      overflow-y: auto;
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      padding: 15px;
+      margin-top: 15px;
+      max-height: 300px;
+      overflow: auto;
+      max-width: 100%;
+    }
+
+    .result-section {
+      margin-bottom: 12px;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
       font-size: 0.85rem;
+    }
+
+    .result-text {
+      color: #2d3748;
+      font-size: 0.9rem;
       line-height: 1.5;
-      word-wrap: break-word;
       white-space: pre-wrap;
     }
+
+    .result-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .tag-condition { background: #fee2e2; color: #991b1b; }
+    .tag-medication { background: #dbeafe; color: #1e40af; }
+    .tag-encounter { background: #d1fae5; color: #065f46; }
 
     .result::-webkit-scrollbar {
       width: 8px;
@@ -725,6 +759,8 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
+      overflow: hidden;
+      min-width: 0;
     }
 
     .notes-area {
@@ -1478,49 +1514,44 @@ Transcription results will be appended below when processing completes."></texta
         resource = { resourceType: 'Encounter', status: 'finished', class: { code: 'AMB' }, type: [{ text: name }], subject: { reference: `Patient/${patientId}` }, period: { start: new Date().toISOString() } };
       }
 
-      try {
-        const res = await fetch(`http://localhost:8080/fhir/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/fhir+json' },
-          body: JSON.stringify(resource)
-        });
-        
-        if (!res.ok) {
-          const err = await res.text();
-          throw new Error(err);
-        }
-        
-        // Close modal
-        document.getElementById('addFormModal').style.display = 'none';
-        
-        // Immediately add to UI
-        const newItem = `<div class="sidebar-item"><div class="title">${name}</div></div>`;
-        if (addFormType === 'condition') {
-          const container = document.getElementById('fsConditions');
-          if (container.querySelector('.no-data')) container.innerHTML = '';
-          container.insertAdjacentHTML('beforeend', newItem);
-        } else if (addFormType === 'medication') {
-          const container = document.getElementById('fsMedications');
-          if (container.querySelector('.no-data')) container.innerHTML = '';
-          container.insertAdjacentHTML('beforeend', newItem);
-        } else {
-          const container = document.getElementById('fsEncounters');
-          if (container.querySelector('.no-data')) container.innerHTML = '';
-          container.insertAdjacentHTML('beforeend', newItem);
-        }
-        
-      } catch (e) {
-        alert('Failed to save: ' + e.message);
+      // Close modal and update UI first
+      document.getElementById('addFormModal').style.display = 'none';
+      const today = new Date().toLocaleDateString();
+      let newItem;
+      if (addFormType === 'condition') {
+        newItem = `<div class="sidebar-item"><div class="title">${name}</div></div>`;
+      } else if (addFormType === 'medication') {
+        const medDate = document.getElementById('addFormDate').value || today;
+        newItem = `<div class="sidebar-item"><div class="title">${name}</div><div class="date">${medDate}</div></div>`;
+      } else {
+        newItem = `<div class="sidebar-item"><div class="title">${name}</div><div class="date">${today}</div></div>`;
       }
+      const containerId = addFormType === 'condition' ? 'fsConditions' : addFormType === 'medication' ? 'fsMedications' : 'fsEncounters';
+      const container = document.getElementById(containerId);
+      if (container.querySelector('.no-data')) container.innerHTML = '';
+      container.insertAdjacentHTML('beforeend', newItem);
+
+      // Save to backend
+      fetch(`http://localhost:8080/fhir/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/fhir+json' },
+        body: JSON.stringify(resource)
+      }).then(res => {
+        if (!res.ok) console.error('FHIR save failed:', res.status);
+        else console.log('Saved to FHIR:', endpoint, name);
+      }).catch(err => console.error('FHIR error:', err));
     }
 
     async function loadFullscreenData(patientId) {
+      const fetchOpts = { cache: 'no-store' };
       const [encounters, medications, conditions, handovers] = await Promise.all([
-        fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=20&_sort=-date`).then(r => r.json()),
-        fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=20`).then(r => r.json()),
-        fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=20`).then(r => r.json()),
-        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&type:text=Handover&_count=20&_sort=-date`).then(r => r.json()).catch(() => ({ entry: [] }))
+        fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=20&_sort=-date`, fetchOpts).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=20`, fetchOpts).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=20`, fetchOpts).then(r => r.json()),
+        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&type:text=Handover&_count=20&_sort=-date`, fetchOpts).then(r => r.json()).catch(() => ({ entry: [] }))
       ]);
+
+      console.log('Loaded medications:', medications);
 
       // Sidebar: Conditions
       document.getElementById('fsConditions').innerHTML = conditions.entry?.length 
@@ -1858,7 +1889,7 @@ Transcription results will be appended below when processing completes."></texta
             const resultData = await waitForWebSocketResult(key);
             
             result.style.display = 'block';
-            result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
+            result.innerHTML = formatResult(resultData);
             status.textContent = 'Done';
 
             if (resultData.fhir_bundle) {
@@ -1866,9 +1897,10 @@ Transcription results will be appended below when processing completes."></texta
               sendToFhirBtn.style.display = 'inline-block';
             }
 
-            // Extract suggested tasks from transcription
+            // Generate clinical notes from transcription
             if (resultData.transcription) {
               extractSuggestedTasks(resultData.transcription);
+              generateClinicalNotes(resultData.transcription);
             }
           } catch (err) {
             status.textContent = 'Error: ' + err.message;
@@ -1962,7 +1994,7 @@ Transcription results will be appended below when processing completes."></texta
         const resultData = await waitForWebSocketResult(key);
         
         result.style.display = 'block';
-        result.innerHTML = '<strong>Result:</strong><pre>' + JSON.stringify(resultData, null, 2) + '</pre>';
+        result.innerHTML = formatResult(resultData);
         status.textContent = 'Done';
         
         // Show FHIR button if bundle exists
@@ -1971,9 +2003,10 @@ Transcription results will be appended below when processing completes."></texta
           sendToFhirBtn.style.display = 'inline-block';
         }
 
-        // Extract suggested tasks from transcription
+        // Generate clinical notes from transcription
         if (resultData.transcription) {
           extractSuggestedTasks(resultData.transcription);
+          generateClinicalNotes(resultData.transcription);
         }
         
         // Stop timer
@@ -2033,6 +2066,56 @@ Transcription results will be appended below when processing completes."></texta
         status.textContent = `Processing transcription... (${i + 1}/${maxAttempts})`;
       }
       throw new Error('Processing timeout');
+    }
+
+    // Generate clinical notes from transcription
+    async function generateClinicalNotes(transcription) {
+      const notesArea = document.getElementById('clinicalNotes');
+      notesArea.value = 'Generating clinical notes...';
+      
+      try {
+        const response = await fetch(`${API_URL}/generate-notes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcription })
+        });
+        
+        const { notes } = await response.json();
+        notesArea.value = notes || transcription;
+      } catch (e) {
+        notesArea.value = transcription;
+      }
+    }
+
+    // Format transcription result nicely
+    function formatResult(data) {
+      let html = '<div class="result-formatted">';
+      
+      if (data.transcription) {
+        html += `<div class="result-section"><div class="result-label">📝 Transcription</div><div class="result-text">${data.transcription}</div></div>`;
+      }
+      
+      if (data.clinical_summary) {
+        html += `<div class="result-section"><div class="result-label">🩺 Clinical Summary</div><div class="result-text">${data.clinical_summary}</div></div>`;
+      }
+      
+      if (data.fhir_bundle?.entry?.length) {
+        const entries = data.fhir_bundle.entry;
+        const conditions = entries.filter(e => e.resource?.resourceType === 'Condition').map(e => e.resource.code?.text).filter(Boolean);
+        const meds = entries.filter(e => e.resource?.resourceType === 'MedicationRequest').map(e => e.resource.medicationCodeableConcept?.text).filter(Boolean);
+        const encounters = entries.filter(e => e.resource?.resourceType === 'Encounter').map(e => e.resource.type?.[0]?.text).filter(Boolean);
+        
+        if (conditions.length || meds.length || encounters.length) {
+          html += '<div class="result-section"><div class="result-label">📋 Extracted Data</div><div class="result-tags">';
+          conditions.forEach(c => html += `<span class="tag tag-condition">${c}</span>`);
+          meds.forEach(m => html += `<span class="tag tag-medication">${m}</span>`);
+          encounters.forEach(e => html += `<span class="tag tag-encounter">${e}</span>`);
+          html += '</div></div>';
+        }
+      }
+      
+      html += '</div>';
+      return html;
     }
 
     // Extract suggested tasks from transcription

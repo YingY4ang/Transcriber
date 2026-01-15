@@ -241,6 +241,53 @@ If none found for a category, use empty array. Return ONLY the JSON, no other te
     except Exception as e:
         return jsonify({'error': str(e), 'tasks': {'conditions': [], 'medications': [], 'encounters': []}}), 200
 
+@app.route('/generate-notes', methods=['POST'])
+def generate_clinical_notes():
+    try:
+        data = request.json
+        transcription = data.get('transcription', '')
+        
+        prompt = f"""Convert this clinical consultation transcription into structured clinical notes.
+
+TRANSCRIPTION:
+{transcription}
+
+Format as:
+CHIEF COMPLAINT:
+[Main reason for visit]
+
+HISTORY OF PRESENT ILLNESS:
+[Relevant history from conversation]
+
+EXAMINATION FINDINGS:
+[Any examination findings mentioned, or "Not documented" if none]
+
+ASSESSMENT:
+[Clinical assessment/diagnosis]
+
+PLAN:
+[Treatment plan, medications, follow-up]
+
+Be concise and professional. Only include information from the transcription:"""
+
+        bedrock = boto3.client('bedrock-runtime', region_name='ap-southeast-2')
+        response = bedrock.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': 800,
+                'messages': [{'role': 'user', 'content': prompt}]
+            })
+        )
+        
+        ai_response = json.loads(response['body'].read())
+        notes = ai_response['content'][0]['text']
+        
+        return jsonify({'notes': notes})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/config')
 def get_config():
     return jsonify({
