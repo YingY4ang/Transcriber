@@ -1,8 +1,14 @@
-import json, os, boto3, time
+import json, os, boto3, time, sys
 import librosa
 import numpy as np
 import soundfile as sf
 from openai import OpenAI
+
+# Add project modules to path
+sys.path.insert(0, '/app')
+from analysis.prompts.bedrock_prompt import get_bedrock_prompt
+from storage.dynamodb.consultation_storage import prepare_consultation_item
+from pdf.templates.consultation_pdf import generate_consultation_pdf
 
 def remove_silence_vad(audio_file_path):
     """Remove silence from audio using VAD"""
@@ -48,11 +54,18 @@ def remove_silence_vad(audio_file_path):
         print(f"VAD processing failed: {e}")
         return audio_file_path  # Return original if VAD fails
 
-def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
-    """Generate FHIR R4 Bundle with NZ extensions"""
+def generate_fhir_bundle(patient_id, encounter_id, consultation_artifact, transcript):
+    """Generate FHIR R4 Bundle with NZ extensions from consultation artifact"""
     # Clean IDs to be FHIR compliant (alphanumeric only)
     clean_encounter_id = ''.join(c for c in encounter_id if c.isalnum())
     clean_patient_id = ''.join(c for c in patient_id if c.isalnum())
+    
+    # Extract data from artifact
+    soap = consultation_artifact.get('soap_notes', {})
+    subjective = soap.get('subjective', {})
+    objective = soap.get('objective', {})
+    assessment = soap.get('assessment', {})
+    plan = soap.get('plan', {})
     
     bundle = {
         "resourceType": "Bundle",
@@ -97,15 +110,16 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
     }
     bundle["entry"].append(encounter)
     
-    # Conditions from diagnosis
-    if extracted_data.get('diagnosis') and extracted_data['diagnosis'] != 'string':
+    # Conditions from assessment
+    primary_dx = assessment.get('primary_diagnosis')
+    if primary_dx:
         condition = {
             "resource": {
                 "resourceType": "Condition",
-                "id": f"condition-{len(bundle['entry'])}",
+                "id": f"condition-primary",
                 "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
                 "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
-                "code": {"text": extracted_data['diagnosis']},
+                "code": {"text": primary_dx},
                 "clinicalStatus": {"coding": [{"code": "active"}]}
             },
             "request": {
@@ -115,9 +129,9 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
         }
         bundle["entry"].append(condition)
     
-    # Medications
-    for i, med in enumerate(extracted_data.get('medications', [])):
-        if med and med != 'string':
+    # Medications from plan
+    for i, med in enumerate(plan.get('medications_prescribed', [])):
+        if med.get('medication'):
             medication = {
                 "resource": {
                     "resourceType": "MedicationRequest",
@@ -126,7 +140,9 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "intent": "order",
                     "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
                     "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
-                    "medicationCodeableConcept": {"text": med}
+                    "medicationCodeableConcept": {
+                        "text": f"{med['medication']} {med.get('dose', '')} {med.get('route', '')} {med.get('frequency', '')}"
+                    }
                 },
                 "request": {
                     "method": "POST",
@@ -136,9 +152,9 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
             bundle["entry"].append(medication)
     
     # Vital signs as Observations
-    vitals = extracted_data.get('vital_signs', {})
+    vitals = objective.get('vital_signs', {})
     for vital_type, value in vitals.items():
-        if value and value != 'string':
+        if value:
             observation = {
                 "resource": {
                     "resourceType": "Observation",
@@ -147,7 +163,7 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "category": [{"coding": [{"code": "vital-signs"}]}],
                     "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
                     "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
-                    "code": {"text": vital_type.upper()},
+                    "code": {"text": vital_type.replace('_', ' ').upper()},
                     "valueString": str(value)
                 },
                 "request": {
@@ -158,8 +174,9 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
             bundle["entry"].append(observation)
     
     # Tasks as ServiceRequests
-    for i, task in enumerate(extracted_data.get('tasks', [])):
-        if task and task not in ['task1', 'task2', 'string']:
+    tasks = consultation_artifact.get('follow_up_tasks', [])
+    for i, task in enumerate(tasks[:10]):  # Limit to first 10 tasks
+        if task.get('description'):
             service_request = {
                 "resource": {
                     "resourceType": "ServiceRequest",
@@ -168,7 +185,8 @@ def generate_fhir_bundle(patient_id, encounter_id, extracted_data, transcript):
                     "intent": "order",
                     "subject": {"reference": f"Patient/patient-{clean_patient_id}"},
                     "encounter": {"reference": f"Encounter/encounter-{clean_encounter_id}"},
-                    "code": {"text": task}
+                    "code": {"text": task['description']},
+                    "priority": task.get('urgency', 'routine')
                 },
                 "request": {
                     "method": "POST",
@@ -256,49 +274,138 @@ while True:
                 ).text
             print(f"Transcript: {transcript[:100]}...")
             
-            prompt = """Extract clinical data and return ONLY valid JSON in this format:
-{
-  "tasks": ["task1", "task2"],
-  "diagnosis": "condition name",
-  "medications": ["med1", "med2"],
-  "follow_up": "follow up plan",
-  "notes": "additional notes",
-  "vital_signs": {"bp": "120/80", "hr": "72", "temp": "36.5"},
-  "symptoms": ["symptom1", "symptom2"]
-}
-
-Clinical transcript: """ + transcript
-            
+            # === SINGLE BEDROCK CALL - Extract complete structured artifact ===
+            print("Calling Bedrock for comprehensive extraction...")
             try:
+                bedrock_request = get_bedrock_prompt(transcript)
                 resp_ai = bedrock.invoke_model(
                     modelId='anthropic.claude-3-haiku-20240307-v1:0',
-                    body=json.dumps({
-                        'anthropic_version': 'bedrock-2023-05-31',
-                        'max_tokens': 1024,
-                        'messages': [{'role': 'user', 'content': prompt}]
-                    })
+                    body=json.dumps(bedrock_request)
                 )
-                import re
-                ai_text = json.loads(resp_ai['body'].read())['content'][0]['text']
-                match = re.search(r'\{.*\}', ai_text, re.DOTALL)
-                extracted = json.loads(match.group()) if match else {"notes": ai_text}
                 
-                # Generate FHIR resources
-                fhir_bundle = generate_fhir_bundle(patient_id, key, extracted, transcript)
+                ai_text = json.loads(resp_ai['body'].read())['content'][0]['text']
+                print(f"Bedrock response length: {len(ai_text)} chars")
+                
+                # Parse JSON from response
+                import re
+                match = re.search(r'\{.*\}', ai_text, re.DOTALL)
+                if not match:
+                    raise ValueError("No JSON found in Bedrock response")
+                
+                consultation_artifact = json.loads(match.group())
+                
+                # Set metadata fields
+                consultation_artifact['metadata']['consultation_id'] = key
+                consultation_artifact['metadata_extraction'] = {
+                    'extraction_timestamp': time.strftime('%Y-%m-%dT%H:%M:%S+12:00'),
+                    'model_used': 'anthropic.claude-3-haiku-20240307-v1:0',
+                    'transcript_length': len(transcript),
+                    'processing_notes': 'Successful extraction'
+                }
+                
+                print(f"Extracted artifact version: {consultation_artifact.get('version')}")
+                print(f"Tasks extracted: {len(consultation_artifact.get('follow_up_tasks', []))}")
                 
             except Exception as e:
-                print(f"Bedrock error: {e}")
-                extracted = {"notes": "extraction failed"}
+                print(f"Bedrock extraction error: {e}")
+                import traceback
+                traceback.print_exc()
+                
+                # Fallback minimal artifact
+                consultation_artifact = {
+                    'version': '2.0',
+                    'metadata': {
+                        'consultation_id': key,
+                        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S+12:00'),
+                        'setting_type': 'other',
+                        'specialty': 'general_practice',
+                        'encounter_type': 'initial_consultation'
+                    },
+                    'patient_context': {},
+                    'soap_notes': {
+                        'subjective': {'chief_complaint': 'Extraction failed'},
+                        'objective': {},
+                        'assessment': {'clinical_impression': f'Error: {str(e)}'},
+                        'plan': {}
+                    },
+                    'clinical_safety': {
+                        'confidence_level': 'low',
+                        'missing_information': ['Complete extraction failed']
+                    },
+                    'follow_up_tasks': [],
+                    'handover': {},
+                    'metadata_extraction': {
+                        'extraction_timestamp': time.strftime('%Y-%m-%dT%H:%M:%S+12:00'),
+                        'model_used': 'anthropic.claude-3-haiku-20240307-v1:0',
+                        'transcript_length': len(transcript),
+                        'processing_notes': f'Extraction failed: {str(e)}'
+                    }
+                }
+            
+            # === GENERATE PDF (Deterministic - NO AI) ===
+            print("Generating PDF...")
+            pdf_path = None
+            pdf_s3_key = None
+            try:
+                pdf_filename = f"/tmp/{key.replace('.webm', '').replace('/', '_')}.pdf"
+                generate_consultation_pdf(
+                    consultation_artifact,
+                    pdf_filename,
+                    facility_info={
+                        'name': 'Clinical Recorder',
+                        'address': 'New Zealand Healthcare',
+                        'phone': 'Contact via system'
+                    }
+                )
+                
+                # Upload PDF to S3 (commented out - uncomment to enable)
+                # pdf_s3_key = f"pdfs/{key.replace('.webm', '.pdf').replace('uploads/', '')}"
+                # s3.upload_file(pdf_filename, bucket, pdf_s3_key)
+                # pdf_url = s3.generate_presigned_url(
+                #     'get_object',
+                #     Params={'Bucket': bucket, 'Key': pdf_s3_key},
+                #     ExpiresIn=86400
+                # )
+                
+                pdf_path = pdf_filename  # Keep local for now
+                print(f"PDF generated: {pdf_filename}")
+                
+            except Exception as e:
+                print(f"PDF generation error: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # === GENERATE FHIR BUNDLE (for backward compatibility) ===
+            try:
+                fhir_bundle = generate_fhir_bundle(patient_id, key, consultation_artifact, transcript)
+            except Exception as e:
+                print(f"FHIR generation error: {e}")
                 fhir_bundle = None
             
-            dynamodb.Table(TABLE).put_item(Item={
-                'audio_key': key, 
-                'patient_id': patient_id,
-                'transcript': transcript, 
-                'timestamp': int(time.time()),
-                'fhir_bundle': fhir_bundle,
-                **extracted
-            })
+            # === SAVE TO DYNAMODB (Nested structure + backward compatible) ===
+            print("Saving to DynamoDB...")
+            try:
+                item = prepare_consultation_item(
+                    audio_key=key,
+                    patient_id=patient_id,
+                    transcript=transcript,
+                    consultation_artifact=consultation_artifact,
+                    fhir_bundle=fhir_bundle
+                )
+                
+                # Add PDF path if generated
+                if pdf_path:
+                    item['pdf_local_path'] = pdf_path
+                if pdf_s3_key:
+                    item['pdf_s3_key'] = pdf_s3_key
+                
+                dynamodb.Table(TABLE).put_item(Item=item)
+                print(f"Saved to DynamoDB: {key}")
+                
+            except Exception as e:
+                print(f"DynamoDB save error: {e}")
+                import traceback
+                traceback.print_exc()
             
             # Send WebSocket notification
             try:
@@ -318,23 +425,28 @@ Clinical transcript: """ + transcript
                 print(f"Found {len(response['Items'])} connections")
                 
                 # Send completion notification to all subscribers
-                for item in response['Items']:
+                for conn_item in response['Items']:
                     try:
                         apigateway.post_to_connection(
-                            ConnectionId=item['connectionId'],
+                            ConnectionId=conn_item['connectionId'],
                             Data=json.dumps({
                                 'type': 'completed',
                                 'audioKey': key,
                                 'result': {
                                     'transcript': transcript,
+                                    'consultation_artifact': consultation_artifact,
                                     'fhir_bundle': fhir_bundle,
-                                    **extracted
+                                    'pdf_available': pdf_path is not None,
+                                    # Legacy fields for backward compatibility
+                                    'diagnosis': item.get('diagnosis'),
+                                    'medications': item.get('medications'),
+                                    'tasks': item.get('tasks')
                                 }
                             })
                         )
-                        print(f"Sent notification to connection: {item['connectionId']}")
+                        print(f"Sent notification to connection: {conn_item['connectionId']}")
                     except Exception as conn_error:
-                        print(f"Failed to send to connection {item['connectionId']}: {conn_error}")
+                        print(f"Failed to send to connection {conn_item['connectionId']}: {conn_error}")
                         pass
             except Exception as e:
                 print(f"WebSocket notification error: {e}")
