@@ -1080,10 +1080,26 @@
       border-left: 4px solid #48bb78;
     }
 
-    .handover-item .meta {
+    .note-item {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 4px solid #667eea;
+    }
+
+    .note-item .meta, .handover-item .meta {
       font-size: 0.8rem;
       color: #718096;
       margin-bottom: 8px;
+    }
+
+    .note-item pre, .handover-item pre {
+      white-space: pre-wrap;
+      font-family: inherit;
+      margin: 0;
+      font-size: 0.85rem;
+      line-height: 1.5;
     }
 
     .handover-input {
@@ -1354,11 +1370,12 @@ Transcription results will be appended below when processing completes."></texta
         </div>
       </div>
 
-      <!-- Right Panel: Handovers -->
+      <!-- Right Panel: Notes & Handovers -->
       <div class="panel">
-        <div class="panel-header">🔄 Clinical Handovers</div>
+        <div class="panel-header">📄 Clinical Notes & Handovers</div>
         <div class="panel-content">
-          <div id="fsPastHandovers"></div>
+          <div id="fsClinicalNotes"></div>
+          <div id="fsPastHandovers" style="margin-top: 15px;"></div>
           
           <div style="border-top: 2px solid #e2e8f0; padding-top: 15px; margin-top: 15px;">
             <strong style="color: #2d3748;">New Handover</strong>
@@ -1544,14 +1561,16 @@ Transcription results will be appended below when processing completes."></texta
 
     async function loadFullscreenData(patientId) {
       const fetchOpts = { cache: 'no-store' };
-      const [encounters, medications, conditions, handovers] = await Promise.all([
+      const [encounters, medications, conditions, handovers, clinicalNotes] = await Promise.all([
         fetch(`http://localhost:8080/fhir/Encounter?subject=Patient/${patientId}&_count=20&_sort=-date`, fetchOpts).then(r => r.json()),
         fetch(`http://localhost:8080/fhir/MedicationRequest?subject=Patient/${patientId}&_count=20`, fetchOpts).then(r => r.json()),
         fetch(`http://localhost:8080/fhir/Condition?subject=Patient/${patientId}&_count=20`, fetchOpts).then(r => r.json()),
-        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&type:text=Handover&_count=20&_sort=-date`, fetchOpts).then(r => r.json()).catch(() => ({ entry: [] }))
+        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&type:text=Handover&_count=20&_sort=-date`, fetchOpts).then(r => r.json()).catch(() => ({ entry: [] })),
+        fetch(`http://localhost:8080/fhir/DocumentReference?subject=Patient/${patientId}&_count=20&_sort=-date`, fetchOpts).then(r => r.json()).catch(() => ({ entry: [] }))
       ]);
 
       console.log('Loaded medications:', medications);
+      console.log('Loaded clinical notes:', clinicalNotes);
 
       // Sidebar: Conditions
       document.getElementById('fsConditions').innerHTML = conditions.entry?.length 
@@ -1568,12 +1587,24 @@ Transcription results will be appended below when processing completes."></texta
         ? encounters.entry.slice(0, 10).map(e => `<div class="sidebar-item"><div class="title">${e.resource.type?.[0]?.text || 'Encounter'}</div><div class="date">${e.resource.period?.start ? new Date(e.resource.period.start).toLocaleDateString() : ''}</div></div>`).join('')
         : '<p class="no-data">No encounters</p>';
 
+      // Clinical Notes (non-handover DocumentReferences)
+      const notes = clinicalNotes.entry?.filter(e => !e.resource.type?.text?.includes('Handover')) || [];
+      document.getElementById('fsClinicalNotes').innerHTML = notes.length
+        ? notes.map(e => {
+            const content = e.resource.content?.[0]?.attachment?.data ? atob(e.resource.content[0].attachment.data) : '';
+            const date = e.resource.date ? new Date(e.resource.date).toLocaleString() : '';
+            const type = e.resource.type?.text || 'Clinical Note';
+            return `<div class="note-item"><div class="meta">📝 ${type} - ${date}</div><pre>${content}</pre></div>`;
+          }).join('')
+        : '<p class="no-data">No clinical notes</p>';
+
       // Past Handovers
-      document.getElementById('fsPastHandovers').innerHTML = handovers.entry?.length
-        ? handovers.entry.map(e => {
+      const handoverDocs = clinicalNotes.entry?.filter(e => e.resource.type?.text?.includes('Handover')) || [];
+      document.getElementById('fsPastHandovers').innerHTML = handoverDocs.length
+        ? handoverDocs.map(e => {
             const content = e.resource.content?.[0]?.attachment?.data ? atob(e.resource.content[0].attachment.data) : 'No content';
             const date = e.resource.date ? new Date(e.resource.date).toLocaleString() : '';
-            return `<div class="handover-item"><div class="meta">📅 ${date}</div><pre>${content}</pre></div>`;
+            return `<div class="handover-item"><div class="meta">🔄 ${date}</div><pre>${content}</pre></div>`;
           }).join('')
         : '<p class="no-data">No previous handovers</p>';
 
