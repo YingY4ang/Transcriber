@@ -119,10 +119,67 @@ def handler(event, context):
         resp = table.get_item(Key={'audio_key': key})
         
         if 'Item' in resp:
+            item = resp['Item']
+            
+            # Check if new format with consultation_artifact
+            if 'consultation_artifact' in item and item.get('artifact_version') == '2.0':
+                # New format - return 3 buttons
+                follow_up_tasks = item.get('follow_up_tasks', [])
+                
+                response_data = {
+                    'status': 'completed',
+                    'buttons': [
+                        {
+                            'type': 'pdf',
+                            'label': 'Download PDF',
+                            'url': item.get('pdf_url'),
+                            'available': item.get('pdf_url') is not None
+                        },
+                        {
+                            'type': 'tasks',
+                            'label': 'Follow-up Tasks',
+                            'count': len(follow_up_tasks),
+                            'urgent_count': item.get('urgent_task_count', 0),
+                            'tasks': [
+                                {
+                                    'task_id': task.get('task_id'),
+                                    'description': task.get('description'),
+                                    'urgency': task.get('urgency'),
+                                    'owner_role': task.get('owner_role'),
+                                    'due_at': task.get('due_at'),
+                                    'status': task.get('status'),
+                                    'details': task  # Full task object for details view
+                                }
+                                for task in follow_up_tasks
+                            ]
+                        },
+                        {
+                            'type': 'json',
+                            'label': 'Full JSON',
+                            'data': {
+                                'transcript': item.get('transcript'),
+                                'consultation_artifact': item.get('consultation_artifact'),
+                                'fhir_bundle': item.get('fhir_bundle'),
+                                'metadata': {
+                                    'audio_key': item.get('audio_key'),
+                                    'patient_id': item.get('patient_id'),
+                                    'timestamp': item.get('timestamp'),
+                                    'setting_type': item.get('setting_type'),
+                                    'specialty': item.get('specialty'),
+                                    'encounter_type': item.get('encounter_type')
+                                }
+                            }
+                        }
+                    ]
+                }
+            else:
+                # Legacy format - return old structure for backward compatibility
+                response_data = item
+            
             return {
                 'statusCode': 200,
                 'headers': headers,
-                'body': json.dumps(resp['Item'])
+                'body': json.dumps(response_data)
             }
         return {'statusCode': 404, 'headers': headers, 'body': '{"status": "processing"}'}
     

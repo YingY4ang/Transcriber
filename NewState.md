@@ -2,7 +2,7 @@
 
 ## Overview
 
-The system has been upgraded to perform **single-pass AI extraction** with comprehensive structured output, followed by **deterministic automation** for all downstream tasks (PDF generation, storage, task extraction).
+The system has been upgraded to perform **single-pass AI extraction** with comprehensive structured output, followed by **deterministic automation** for all downstream tasks (PDF generation, storage, task extraction). The API now returns a **3-button interface** instead of raw JSON for better user experience.
 
 **Key Achievement:** Bedrock is called exactly ONCE per transcript, producing a complete `ConsultationArtifact` that contains everything needed for:
 - SOAP-formatted consultation notes
@@ -47,8 +47,598 @@ The system has been upgraded to perform **single-pass AI extraction** with compr
 17. Worker → SQS: Delete message
 18. Browser polls /result/{key}
 19. API → DynamoDB: Retrieve item
-20. API → Browser: Return results (artifact + PDF URL + legacy fields)
+20. API → Browser: Return 3-button interface (PDF, Tasks, JSON)
 ```
+
+---
+
+## API Response Format
+
+### New 3-Button Interface
+
+When a consultation is complete, the API returns:
+
+```json
+{
+  "status": "completed",
+  "buttons": [
+    {
+      "type": "pdf",
+      "label": "Download PDF",
+      "url": "https://s3.../pdfs/consultation.pdf",
+      "available": true
+    },
+    {
+      "type": "tasks",
+      "label": "Follow-up Tasks",
+      "count": 5,
+      "urgent_count": 2,
+      "tasks": [
+        {
+          "task_id": "task-001",
+          "description": "Perform ECG immediately",
+          "urgency": "stat",
+          "owner_role": "nurse",
+          "due_at": "immediately",
+          "status": "proposed",
+          "details": { /* full task object with automation data */ }
+        }
+      ]
+    },
+    {
+      "type": "json",
+      "label": "Full JSON",
+      "data": {
+        "transcript": "full text...",
+        "consultation_artifact": { /* complete structured data */ },
+        "fhir_bundle": { /* FHIR resources */ },
+        "metadata": { /* consultation metadata */ }
+      }
+    }
+  ]
+}
+```
+
+### Button Types
+
+**1. PDF Button**
+- **Purpose:** Download professional consultation notes
+- **Available:** When PDF generation succeeds
+- **Content:** SOAP notes, handover, follow-up tasks
+- **Format:** Professional medical document with facility header
+
+**2. Follow-up Tasks Button**
+- **Purpose:** View and manage actionable tasks
+- **Summary:** Shows total count and urgent count
+- **Task List:** Each task includes:
+  - Description and urgency
+  - Owner role and due date
+  - Current status
+  - Full details with automation data
+- **Use Cases:** 
+  - Nursing task assignment
+  - Pharmacy order routing
+  - Radiology booking
+  - Discharge planning
+
+**3. Full JSON Button**
+- **Purpose:** Access complete structured data
+- **Content:** 
+  - Original transcript
+  - Complete consultation artifact
+  - FHIR bundle
+  - Metadata
+- **Use Cases:**
+  - System integration
+  - Data analysis
+  - Audit trail
+  - Development/debugging
+
+---
+
+## User Interface Flow
+
+### Frontend Implementation
+
+```javascript
+// Poll for results
+const response = await fetch(`/result/${audioKey}`);
+const data = await response.json();
+
+if (data.status === 'completed' && data.buttons) {
+    // Render 3 buttons
+    data.buttons.forEach(button => {
+        switch(button.type) {
+            case 'pdf':
+                renderPDFButton(button);
+                break;
+            case 'tasks':
+                renderTasksButton(button);
+                break;
+            case 'json':
+                renderJSONButton(button);
+                break;
+        }
+    });
+}
+
+function renderPDFButton(button) {
+    if (button.available) {
+        // Show download link
+        createDownloadButton(button.label, button.url);
+    } else {
+        // Show "PDF not available"
+        showDisabledButton(button.label);
+    }
+}
+
+function renderTasksButton(button) {
+    // Show task summary
+    const summary = `${button.count} tasks (${button.urgent_count} urgent)`;
+    
+    // Create expandable task list
+    const taskList = button.tasks.map(task => ({
+        id: task.task_id,
+        summary: `[${task.urgency.toUpperCase()}] ${task.description}`,
+        details: task.details,
+        owner: task.owner_role,
+        due: task.due_at
+    }));
+    
+    createTaskInterface(summary, taskList);
+}
+
+function renderJSONButton(button) {
+    // Create collapsible JSON viewer
+    createJSONViewer(button.label, button.data);
+}
+```
+
+### Task Details View
+
+When user clicks on a specific task:
+
+```javascript
+function showTaskDetails(task) {
+    const modal = {
+        title: task.description,
+        urgency: task.urgency,
+        owner: task.owner_role,
+        due: task.due_at,
+        status: task.status,
+        evidence: task.details.transcript_evidence,
+        automationData: task.details.required_inputs
+    };
+    
+    // Show automation-ready data
+    if (task.details.task_type === 'prescription') {
+        showPrescriptionDetails(modal.automationData.prescription);
+    } else if (task.details.task_type === 'order_scan') {
+        showImagingDetails(modal.automationData.imaging);
+    }
+    // ... etc for other task types
+}
+```
+
+---
+
+## Files Changed/Added
+
+### Modified Files
+
+**API:**
+- `backend/api_lambda_clean.py`
+  - Updated `/result/{key}` endpoint to return 3-button interface
+  - Maintains backward compatibility for legacy items
+  - Structures tasks for easy frontend consumption
+
+**Worker:**
+- `docker/whipser_api/worker_openai.py` (from previous implementation)
+  - Single Bedrock call with comprehensive extraction
+  - PDF generation and storage
+  - Nested DynamoDB structure
+
+**Docker:**
+- `docker/whipser_api/Dockerfile` (from previous implementation)
+  - Added dependencies and module copies
+
+### New Files (from previous implementation)
+
+**Schemas:**
+- `shared/schemas/consultation_artifact_schema.json` - Complete JSON schema
+
+**Prompts:**
+- `analysis/prompts/bedrock_prompt.py` - Comprehensive extraction prompt
+
+**Storage:**
+- `storage/dynamodb/consultation_storage.py` - DynamoDB helpers
+
+**PDF Generation:**
+- `pdf/templates/consultation_pdf.py` - Professional PDF generator
+
+**Testing:**
+- `test_consultation_system.py` - Comprehensive test suite
+
+---
+
+## JSON Schema Definition
+
+The `ConsultationArtifact` schema (version 2.0) remains the same as previously implemented, with comprehensive structure for:
+
+- **Metadata:** Consultation context, participants, location
+- **Patient Context:** De-identified patient information
+- **SOAP Notes:** Complete subjective, objective, assessment, plan
+- **Clinical Safety:** Red flags, risks, contraindications, missing info
+- **Follow-up Tasks:** Structured actionable tasks with automation data
+- **Handover:** SBAR format for nursing/medical staff
+- **Extraction Metadata:** Processing information
+
+---
+
+## DynamoDB Schema
+
+### Item Structure (unchanged from previous implementation)
+
+```json
+{
+  "audio_key": "uploads/test_xxx.webm",
+  "consultation_artifact": { /* COMPLETE NESTED STRUCTURE */ },
+  "follow_up_tasks": [ /* array of tasks */ ],
+  "pending_task_count": 5,
+  "urgent_task_count": 2,
+  "pdf_url": "https://s3.../pdfs/test_xxx.pdf",
+  "artifact_version": "2.0",
+  // Legacy fields for backward compatibility
+  "diagnosis": "...",
+  "medications": [...],
+  "tasks": [...]
+}
+```
+
+### API Query Logic
+
+```python
+# In api_lambda_clean.py
+if 'consultation_artifact' in item and item.get('artifact_version') == '2.0':
+    # Return 3-button interface
+    return structured_button_response(item)
+else:
+    # Return legacy flat JSON for backward compatibility
+    return item
+```
+
+---
+
+## Frontend Integration Examples
+
+### Basic Implementation
+
+```html
+<div id="results-container">
+    <!-- Buttons will be rendered here -->
+</div>
+
+<script>
+async function pollForResults(audioKey) {
+    const response = await fetch(`/result/${audioKey}`);
+    const data = await response.json();
+    
+    if (data.status === 'completed' && data.buttons) {
+        renderButtons(data.buttons);
+    } else if (data.status === 'processing') {
+        // Continue polling
+        setTimeout(() => pollForResults(audioKey), 2000);
+    }
+}
+
+function renderButtons(buttons) {
+    const container = document.getElementById('results-container');
+    
+    buttons.forEach(button => {
+        const buttonElement = document.createElement('button');
+        buttonElement.textContent = button.label;
+        buttonElement.className = `btn btn-${button.type}`;
+        
+        buttonElement.onclick = () => handleButtonClick(button);
+        container.appendChild(buttonElement);
+    });
+}
+
+function handleButtonClick(button) {
+    switch(button.type) {
+        case 'pdf':
+            if (button.available) {
+                window.open(button.url, '_blank');
+            } else {
+                alert('PDF not available');
+            }
+            break;
+            
+        case 'tasks':
+            showTasksModal(button);
+            break;
+            
+        case 'json':
+            showJSONModal(button.data);
+            break;
+    }
+}
+</script>
+```
+
+### Task Management Interface
+
+```javascript
+function showTasksModal(button) {
+    const modal = document.createElement('div');
+    modal.className = 'task-modal';
+    
+    // Header with summary
+    const header = document.createElement('h3');
+    header.textContent = `${button.count} Follow-up Tasks (${button.urgent_count} urgent)`;
+    modal.appendChild(header);
+    
+    // Task list
+    const taskList = document.createElement('div');
+    taskList.className = 'task-list';
+    
+    button.tasks.forEach(task => {
+        const taskItem = document.createElement('div');
+        taskItem.className = `task-item priority-${task.urgency}`;
+        
+        taskItem.innerHTML = `
+            <div class="task-summary">
+                <span class="urgency-badge ${task.urgency}">${task.urgency.toUpperCase()}</span>
+                <span class="description">${task.description}</span>
+                <span class="owner">→ ${task.owner_role}</span>
+            </div>
+            <div class="task-meta">
+                Due: ${task.due_at} | Status: ${task.status}
+            </div>
+        `;
+        
+        // Click to show details
+        taskItem.onclick = () => showTaskDetails(task);
+        taskList.appendChild(taskItem);
+    });
+    
+    modal.appendChild(taskList);
+    document.body.appendChild(modal);
+}
+
+function showTaskDetails(task) {
+    const details = task.details;
+    const automationData = details.required_inputs;
+    
+    let detailsHTML = `
+        <h4>${task.description}</h4>
+        <p><strong>Evidence:</strong> "${details.transcript_evidence}"</p>
+        <p><strong>Owner:</strong> ${task.owner_role}</p>
+        <p><strong>Due:</strong> ${task.due_at}</p>
+        <p><strong>Status:</strong> ${task.status}</p>
+    `;
+    
+    // Show automation data based on task type
+    if (details.task_type === 'prescription' && automationData.prescription) {
+        const rx = automationData.prescription;
+        detailsHTML += `
+            <h5>Prescription Details:</h5>
+            <ul>
+                <li>Medication: ${rx.medication}</li>
+                <li>Dose: ${rx.dose}</li>
+                <li>Route: ${rx.route}</li>
+                <li>Frequency: ${rx.frequency}</li>
+                <li>Duration: ${rx.duration}</li>
+                <li>Indication: ${rx.indication}</li>
+            </ul>
+        `;
+    } else if (details.task_type === 'order_scan' && automationData.imaging) {
+        const img = automationData.imaging;
+        detailsHTML += `
+            <h5>Imaging Details:</h5>
+            <ul>
+                <li>Modality: ${img.modality}</li>
+                <li>Body Part: ${img.body_part}</li>
+                <li>Contrast: ${img.contrast ? 'Yes' : 'No'}</li>
+                <li>Clinical Question: ${img.clinical_question}</li>
+                <li>Urgency: ${img.urgency}</li>
+            </ul>
+        `;
+    }
+    
+    // Show details modal
+    showModal('Task Details', detailsHTML);
+}
+```
+
+---
+
+## Testing
+
+### Updated Test for API Response
+
+```python
+def test_api_button_response():
+    """Test that API returns 3-button interface for new format"""
+    
+    # Mock DynamoDB item with consultation_artifact
+    mock_item = {
+        'audio_key': 'test.webm',
+        'artifact_version': '2.0',
+        'consultation_artifact': sample_artifact,
+        'follow_up_tasks': sample_tasks,
+        'urgent_task_count': 2,
+        'pdf_url': 'https://s3.../test.pdf'
+    }
+    
+    # Test API logic
+    response = process_result_request(mock_item)
+    
+    assert response['status'] == 'completed'
+    assert 'buttons' in response
+    assert len(response['buttons']) == 3
+    
+    # Test PDF button
+    pdf_button = response['buttons'][0]
+    assert pdf_button['type'] == 'pdf'
+    assert pdf_button['available'] == True
+    assert pdf_button['url'] == 'https://s3.../test.pdf'
+    
+    # Test tasks button
+    tasks_button = response['buttons'][1]
+    assert tasks_button['type'] == 'tasks'
+    assert tasks_button['count'] == len(sample_tasks)
+    assert tasks_button['urgent_count'] == 2
+    
+    # Test JSON button
+    json_button = response['buttons'][2]
+    assert json_button['type'] == 'json'
+    assert 'consultation_artifact' in json_button['data']
+```
+
+### Frontend Testing
+
+```javascript
+// Test button rendering
+function testButtonRendering() {
+    const mockResponse = {
+        status: 'completed',
+        buttons: [
+            {
+                type: 'pdf',
+                label: 'Download PDF',
+                url: 'https://example.com/test.pdf',
+                available: true
+            },
+            {
+                type: 'tasks',
+                label: 'Follow-up Tasks',
+                count: 3,
+                urgent_count: 1,
+                tasks: [/* mock tasks */]
+            },
+            {
+                type: 'json',
+                label: 'Full JSON',
+                data: {/* mock data */}
+            }
+        ]
+    };
+    
+    renderButtons(mockResponse.buttons);
+    
+    // Verify 3 buttons created
+    const buttons = document.querySelectorAll('.btn');
+    console.assert(buttons.length === 3, 'Should create 3 buttons');
+    console.assert(buttons[0].textContent === 'Download PDF', 'First button should be PDF');
+    console.assert(buttons[1].textContent === 'Follow-up Tasks', 'Second button should be Tasks');
+    console.assert(buttons[2].textContent === 'Full JSON', 'Third button should be JSON');
+}
+```
+
+---
+
+## Deployment
+
+### API Update
+
+The API change is backward compatible:
+- New items (with `artifact_version: "2.0"`) return 3-button interface
+- Legacy items return original flat JSON structure
+- No breaking changes for existing consumers
+
+### Frontend Update Required
+
+Frontend needs to be updated to handle the new button interface:
+
+```javascript
+// Old code (still works for legacy items)
+if (data.transcript) {
+    showTranscript(data.transcript);
+    showDiagnosis(data.diagnosis);
+    showMedications(data.medications);
+}
+
+// New code (for button interface)
+if (data.buttons) {
+    renderButtons(data.buttons);
+} else {
+    // Handle legacy format
+    renderLegacyData(data);
+}
+```
+
+---
+
+## Benefits of Button Interface
+
+### User Experience
+- **Cleaner interface** - 3 clear actions instead of raw JSON
+- **Progressive disclosure** - Show summary first, details on demand
+- **Task-focused** - Highlights actionable items
+- **Professional** - PDF download for clinical records
+
+### Developer Experience
+- **Structured data** - Tasks pre-formatted for frontend consumption
+- **Automation ready** - Task details include all required data
+- **Flexible** - Can add more button types in future
+- **Backward compatible** - Legacy consumers unaffected
+
+### Clinical Workflow
+- **PDF for records** - Professional consultation notes
+- **Tasks for action** - Clear follow-up items with owners and urgency
+- **JSON for integration** - Complete data for system integration
+- **Audit trail** - Transcript evidence for each task
+
+---
+
+## Future Enhancements
+
+### Additional Button Types
+- **Handover** button - Dedicated nursing handover view
+- **Prescriptions** button - Pharmacy-ready medication list
+- **Referrals** button - Specialist referral letters
+- **Audit** button - Clinical decision audit trail
+
+### Task Management Features
+- **Status updates** - Mark tasks as completed
+- **Assignment** - Assign tasks to specific staff
+- **Notifications** - Alert when urgent tasks created
+- **Dependencies** - Show task dependency chains
+- **Scheduling** - Calendar integration for due dates
+
+### Integration Enhancements
+- **Direct API calls** - Send tasks directly to external systems
+- **Status synchronization** - Update task status from external systems
+- **Bulk operations** - Process multiple tasks at once
+- **Reporting** - Task completion analytics
+
+---
+
+## Summary
+
+**Key Changes:**
+- ✓ API returns 3-button interface instead of raw JSON
+- ✓ PDF button for professional consultation notes
+- ✓ Tasks button with summary and detailed task management
+- ✓ JSON button for complete structured data access
+- ✓ Backward compatibility maintained for legacy items
+- ✓ Frontend-friendly task formatting
+- ✓ Progressive disclosure of information
+
+**User Benefits:**
+- Cleaner, more intuitive interface
+- Direct access to actionable tasks
+- Professional PDF download
+- Complete data access when needed
+
+**Developer Benefits:**
+- Structured API response
+- Task automation data readily available
+- Flexible button system for future enhancements
+- Backward compatibility preserved
+
+The system now provides a user-friendly interface while maintaining all the comprehensive data extraction and automation capabilities implemented in the previous version.
 
 ---
 
