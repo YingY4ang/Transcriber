@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Recorder - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="frontend/api-service.js"></script>
+    <style>
+        .tab-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+        .urgency-stat { background: #fee2e2; color: #991b1b; }
+        .urgency-urgent { background: #fed7aa; color: #9a3412; }
+        .urgency-routine { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Clinical Recorder</h1>
+                    <p class="text-sm text-gray-500" id="clinician-name">Dr. [Your Name]</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="showHandover()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Generate Handover
+                    </button>
+                    <button onclick="showNewRecording()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        + New Recording
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="switchTab('approvals')" id="tab-approvals" class="tab-active py-4 px-1 font-medium text-sm">
+                    Pending Approvals <span id="approval-count" class="ml-2 bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">0</span>
+                </button>
+                <button onclick="switchTab('tasks')" id="tab-tasks" class="py-4 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                    Tasks <span id="task-count" class="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">0</span>
+                </button>
+                <button onclick="switchTab('patients')" id="tab-patients" class="py-4 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                    Patients
+                </button>
+                <button onclick="switchTab('record')" id="tab-record" class="py-4 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                    Record
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <!-- Approvals Tab -->
+        <div id="content-approvals" class="tab-content">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6">
+                    <h2 class="text-lg font-semibold mb-4">Consultations Pending Approval</h2>
+                    <div id="approvals-list" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="content-tasks" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6">
+                    <h2 class="text-lg font-semibold mb-4">Pending Tasks</h2>
+                    <div id="tasks-list" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patients Tab -->
+        <div id="content-patients" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6">
+                    <h2 class="text-lg font-semibold mb-4">Patient Search</h2>
+                    <input type="text" id="patient-search" placeholder="Enter Patient ID..." 
+                           class="w-full px-4 py-2 border rounded-lg mb-4"
+                           onkeypress="if(event.key==='Enter') searchPatient()">
+                    <div id="patient-history" class="mt-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Record Tab -->
+        <div id="content-record" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6">
+                    <h2 class="text-lg font-semibold mb-4">Record Consultation</h2>
+                    
+                    <!-- Patient ID Input -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+                        <input type="text" id="record-patient-id" placeholder="Enter Patient ID" 
+                               class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+
+                    <!-- Consent Checkboxes -->
+                    <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <h3 class="font-medium mb-2">Patient Consent Required</h3>
+                        <label class="flex items-center mb-2">
+                            <input type="checkbox" id="consent-recording" class="mr-2">
+                            <span class="text-sm">Patient consents to audio recording</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="consent-ai" class="mr-2">
+                            <span class="text-sm">Patient consents to AI processing</span>
+                        </label>
+                    </div>
+
+                    <!-- Recording Controls -->
+                    <div class="text-center">
+                        <button id="start-recording" onclick="startRecording()" 
+                                class="px-8 py-4 bg-red-600 text-white rounded-full text-lg font-semibold hover:bg-red-700 disabled:bg-gray-400">
+                            🎤 Start Recording
+                        </button>
+                        <button id="stop-recording" onclick="stopRecording()" 
+                                class="hidden px-8 py-4 bg-gray-600 text-white rounded-full text-lg font-semibold hover:bg-gray-700">
+                            ⏹ Stop Recording
+                        </button>
+                        <div id="recording-status" class="mt-4 text-sm text-gray-600"></div>
+                        <div id="recording-timer" class="mt-2 text-2xl font-mono text-gray-800"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Modal -->
+    <div id="approval-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 class="text-xl font-bold">Review Consultation</h2>
+                    <button onclick="closeApprovalModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <div id="approval-modal-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize
+        const API_URL = 'https://your-api-gateway-url.execute-api.ap-southeast-2.amazonaws.com';
+        const api = new APIService(API_URL);
+        const clinicianId = 'DR001'; // TODO: Get from login
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let timerInterval;
+
+        // Load data on page load
+        window.addEventListener('load', () => {
+            loadApprovals();
+            loadTasks();
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.remove('tab-active', 'text-blue-600'));
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('text-gray-500'));
+            
+            // Show selected tab
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active', 'text-blue-600');
+            document.getElementById(`tab-${tab}`).classList.remove('text-gray-500');
+
+            // Load data if needed
+            if (tab === 'approvals') loadApprovals();
+            if (tab === 'tasks') loadTasks();
+        }
+
+        // Load pending approvals
+        async function loadApprovals() {
+            try {
+                const data = await api.getPendingApprovals();
+                const list = document.getElementById('approvals-list');
+                document.getElementById('approval-count').textContent = data.count;
+
+                if (data.count === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No pending approvals</p>';
+                    return;
+                }
+
+                list.innerHTML = data.approvals.map(approval => `
+                    <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="showApprovalDetail('${approval.audio_key}')">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-semibold">Patient: ${approval.patient_id}</h3>
+                                <p class="text-sm text-gray-600">${approval.chief_complaint || 'No chief complaint'}</p>
+                                <p class="text-sm text-gray-500 mt-1">${new Date(approval.timestamp).toLocaleString()}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                                    Pending Review
+                                </span>
+                                <p class="text-sm text-gray-600 mt-2">${approval.task_count} tasks</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading approvals:', error);
+            }
+        }
+
+        // Load pending tasks
+        async function loadTasks() {
+            try {
+                const data = await api.getPendingTasks();
+                const list = document.getElementById('tasks-list');
+                document.getElementById('task-count').textContent = data.count;
+
+                if (data.count === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No pending tasks</p>';
+                    return;
+                }
+
+                // Group by urgency
+                const urgent = data.tasks.filter(t => t.urgency === 'stat' || t.urgency === 'urgent');
+                const routine = data.tasks.filter(t => t.urgency === 'routine' || t.urgency === 'low');
+
+                let html = '';
+                if (urgent.length > 0) {
+                    html += '<h3 class="font-semibold text-red-600 mb-2">URGENT (' + urgent.length + ')</h3>';
+                    html += urgent.map(task => renderTask(task)).join('');
+                }
+                if (routine.length > 0) {
+                    html += '<h3 class="font-semibold text-blue-600 mt-4 mb-2">ROUTINE (' + routine.length + ')</h3>';
+                    html += routine.map(task => renderTask(task)).join('');
+                }
+
+                list.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        function renderTask(task) {
+            const urgencyClass = `urgency-${task.urgency}`;
+            return `
+                <div class="border rounded-lg p-4 ${urgencyClass}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <span class="inline-block px-2 py-1 bg-white rounded text-xs font-semibold mb-2">
+                                ${task.urgency.toUpperCase()}
+                            </span>
+                            <h4 class="font-semibold">${task.description}</h4>
+                            <p class="text-sm mt-1">Patient: ${task.patient_id}</p>
+                            <p class="text-sm">Owner: ${task.owner_role}</p>
+                            <p class="text-sm">Due: ${task.due_at}</p>
+                        </div>
+                        <button onclick="completeTask('${task.consultation_key}', '${task.task_id}')" 
+                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                            Mark Complete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Complete task
+        async function completeTask(audioKey, taskId) {
+            if (!confirm('Mark this task as complete?')) return;
+            
+            try {
+                await api.updateTask(audioKey, taskId, 'completed', clinicianId);
+                alert('Task marked as complete');
+                loadTasks();
+            } catch (error) {
+                alert('Error updating task: ' + error.message);
+            }
+        }
+
+        // Search patient
+        async function searchPatient() {
+            const patientId = document.getElementById('patient-search').value.trim();
+            if (!patientId) return;
+
+            try {
+                const data = await api.getPatientHistory(patientId);
+                const container = document.getElementById('patient-history');
+
+                if (data.consultation_count === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-8">No consultations found</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <h3 class="font-semibold mb-4">Patient: ${data.patient_id} (${data.consultation_count} consultations)</h3>
+                    <div class="space-y-4">
+                        ${data.consultations.map(c => `
+                            <div class="border rounded-lg p-4">
+                                <div class="flex justify-between">
+                                    <div>
+                                        <p class="font-semibold">${new Date(c.timestamp).toLocaleDateString()}</p>
+                                        <p class="text-sm text-gray-600">${c.chief_complaint}</p>
+                                        <p class="text-sm text-gray-600">Diagnosis: ${c.primary_diagnosis || 'N/A'}</p>
+                                    </div>
+                                    <button onclick="viewConsultation('${c.audio_key}')" 
+                                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                alert('Error loading patient history: ' + error.message);
+            }
+        }
+
+        // Show approval detail (simplified - you'll expand this)
+        async function showApprovalDetail(audioKey) {
+            try {
+                const result = await api.getResult(audioKey);
+                // TODO: Show full approval interface with editable fields
+                const approved = confirm('Approve this consultation?');
+                if (approved) {
+                    await api.approveConsultation(audioKey, clinicianId);
+                    alert('Consultation approved!');
+                    loadApprovals();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Recording functions
+        async function startRecording() {
+            const patientId = document.getElementById('record-patient-id').value.trim();
+            const consentRecording = document.getElementById('consent-recording').checked;
+            const consentAI = document.getElementById('consent-ai').checked;
+
+            if (!patientId) {
+                alert('Please enter Patient ID');
+                return;
+            }
+
+            if (!consentRecording || !consentAI) {
+                alert('Patient consent required for both recording and AI processing');
+                return;
+            }
+
+            // Record consents
+            await api.recordConsent(patientId, 'recording', true, clinicianId);
+            await api.recordConsent(patientId, 'ai_processing', true, clinicianId);
+
+            // Start recording
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                await uploadRecording(audioBlob, patientId);
+            };
+
+            mediaRecorder.start();
+            recordingStartTime = Date.now();
+            
+            document.getElementById('start-recording').classList.add('hidden');
+            document.getElementById('stop-recording').classList.remove('hidden');
+            document.getElementById('recording-status').textContent = 'Recording...';
+            
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            clearInterval(timerInterval);
+            
+            document.getElementById('start-recording').classList.remove('hidden');
+            document.getElementById('stop-recording').classList.add('hidden');
+            document.getElementById('recording-status').textContent = 'Processing...';
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('recording-timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        async function uploadRecording(audioBlob, patientId) {
+            try {
+                // Get upload URL
+                const { upload_url, key } = await api.getUploadURL(patientId);
+                
+                // Upload to S3
+                await api.uploadAudio(upload_url, audioBlob);
+                
+                // Trigger processing
+                await api.triggerProcessing(key);
+                
+                document.getElementById('recording-status').textContent = 'Upload complete! Processing...';
+                document.getElementById('recording-timer').textContent = '';
+                
+                alert('Recording uploaded successfully! Check Pending Approvals in a few minutes.');
+                
+                // Reset form
+                document.getElementById('record-patient-id').value = '';
+                document.getElementById('consent-recording').checked = false;
+                document.getElementById('consent-ai').checked = false;
+            } catch (error) {
+                alert('Error uploading recording: ' + error.message);
+                document.getElementById('recording-status').textContent = 'Error uploading';
+            }
+        }
+
+        // Handover
+        async function showHandover() {
+            try {
+                const data = await api.getHandover(clinicianId);
+                alert(`Handover Report\n\nPatients seen: ${data.total_patients}\nPending tasks: ${data.total_pending_tasks}\nUrgent tasks: ${data.urgent_task_count}`);
+                // TODO: Show full handover report in modal
+            } catch (error) {
+                alert('Error generating handover: ' + error.message);
+            }
+        }
+
+        function showNewRecording() {
+            switchTab('record');
+        }
+    </script>
+</body>
+</html>

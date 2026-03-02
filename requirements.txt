@@ -1,0 +1,19 @@
+# Clinical Recorder v2.0 - Python Dependencies
+
+# AWS SDK
+boto3>=1.34.0
+
+# HTTP requests for integrations
+requests>=2.31.0
+
+# PDF generation
+reportlab>=4.0.0
+
+# Audio processing (for worker)
+openai>=1.0.0
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
+
+# Testing
+pytest>=7.4.0
